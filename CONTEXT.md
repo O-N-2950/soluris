@@ -1,151 +1,152 @@
-# 🗂️ CONTEXT.md — Soluris (soluris.ch)
-> Dernière mise à jour : 21 février 2026
-> Coller en début de chaque conversation dans le projet "Soluris"
+# SOLURIS — Contexte Projet
 
----
+> Fichier mis à jour automatiquement à chaque session. Sert de mémoire persistante entre les conversations.
 
-## 🎯 VUE D'ENSEMBLE
+## 🎯 Vision
 
-**Soluris** = Assistant juridique IA spécialisé en droit suisse. Répond aux questions juridiques en citant les sources exactes (Fedlex, jurisprudence ATF, Tribunal fédéral, cantons romands).
+**Soluris** = "Solutio" (solution) + "Iuris" (du droit). Plateforme d'intelligence juridique suisse propulsée par l'IA. Cible : avocats, études, magistrats en Suisse romande.
 
-- **URL :** https://soluris.ch
-- **Repo :** https://github.com/O-N-2950/soluris
-- **Hébergement :** Railway (Docker)
-- **© 2026 Soluris, Genève, Suisse**
+- **Domaine choisi** : `soluris.ch` (confirmé disponible via RDAP — pas encore enregistré)
+- **Positionnement** : Premium, institutionnel, "la référence de confiance"
+- **Pricing** : Solo CHF 149/mo, Cabinet CHF 449/mo, Enterprise sur mesure. Essai 14j gratuit sans CB.
 
----
+## 🏗 Stack Technique
 
-## 🏗️ STACK TECHNIQUE
+| Composant | Technologie |
+|-----------|-------------|
+| Frontend | HTML/CSS/JS vanilla (pas de framework) |
+| Backend | FastAPI (Python 3.11) |
+| Base de données | PostgreSQL + pgvector |
+| Auth | JWT (python-jose, bcrypt, 72h expiration) |
+| IA | Claude API (claude-sonnet-4-20250514) |
+| Embeddings | Cohere multilingual (prévu, pas encore implémenté) |
+| Déploiement | Railway (Dockerfile) |
+| Repo | https://github.com/O-N-2950/soluris |
 
-| Couche | Tech |
-|--------|------|
-| Backend | Python 3.11 + FastAPI (async) |
-| Frontend | HTML/CSS/JS vanilla — design dark-mode premium |
-| BDD | PostgreSQL + pgvector (embeddings pour RAG) |
-| IA | Claude API (Anthropic) — `claude-sonnet-4-20250514` |
-| Sources légales | Fedlex (SPARQL), Entscheidsuche, Tribunal fédéral, cantons romands |
-| Deploy | Railway + Docker |
+## 🎨 Design System (v2 — Premium Éditorial)
 
----
+Redesign complet aligné sur le logo (hexagone réseau neuronal + point doré central).
 
-## 📁 STRUCTURE DU PROJET
+**Palette :**
+- Navy deep `#06101F` (fond principal)
+- Navy `#0B1F3B` (cartes, surfaces)
+- Or `#C6A75E` (CTA, accents — usage parcimonieux)
+- Cream `#F5F0E8` (texte principal)
+- Text secondary `#8A9AB5`
+
+**Typographie :**
+- Titres : Cormorant Garamond (serif, autorité institutionnelle)
+- Corps : DM Sans (lisibilité moderne)
+- Code : JetBrains Mono
+
+**Esthétique :** Éditoriale, lignes fines dorées, espacement généreux, pas de glow excessif. "Banque privée genevoise" plutôt que "startup tech".
+
+## 📁 Structure du Projet
 
 ```
 soluris/
-├── backend/
-│   ├── main.py                    # FastAPI entrypoint
-│   ├── db/
-│   │   └── database.py            # Init PostgreSQL + pgvector
-│   ├── models/                    # SQLAlchemy models
-│   ├── routers/
-│   │   ├── auth.py                # JWT auth
-│   │   ├── chat.py                # /api/chat — endpoint principal
-│   │   ├── conversations.py       # Historique conversations
-│   │   └── health.py              # Health check
-│   ├── services/
-│   │   └── rag.py                 # Pipeline RAG + appel Claude API
-│   └── scrapers/
-│       ├── fedlex.py              # Fedlex SPARQL (lois fédérales)
-│       └── entscheidsuche.py      # Jurisprudence
 ├── frontend/
-│   ├── index.html                 # Landing page
-│   ├── app.html                   # Application chat
-│   ├── login.html                 # Connexion
-│   ├── css/styles.css
-│   └── js/
-│       ├── app.js                 # Logic chat
-│       ├── auth.js                # Auth frontend
-│       └── landing.js
+│   ├── index.html          ← Landing page (premium editorial)
+│   ├── app.html             ← Interface chat
+│   ├── login.html           ← Auth (login/signup)
+│   ├── css/styles.css       ← Design system complet (1450+ lignes)
+│   ├── js/
+│   │   ├── app.js           ← Chat + API integration
+│   │   ├── auth.js          ← Login/signup logic
+│   │   └── landing.js       ← Scroll animations
+│   └── assets/
+│       ├── logo-soluris.svg       ← Logo complet avec texte
+│       ├── logo-icon-dark.svg     ← Hexagone seul (navbar, favicon)
+│       ├── logo-soluris.png       ← PNG fond transparent (522x392)
+│       ├── logo-soluris-md.png    ← PNG 80px height
+│       └── logo-soluris-nav.png   ← PNG 40px height
+├── backend/
+│   ├── main.py              ← FastAPI entry, CORS, static serving
+│   ├── db/database.py       ← asyncpg pool, schema init
+│   ├── routers/
+│   │   ├── auth.py          ← JWT login/signup/me
+│   │   ├── chat.py          ← RAG endpoint /api/chat
+│   │   ├── conversations.py ← History /api/conversations
+│   │   └── health.py        ← /health check
+│   ├── services/rag.py      ← Claude API + (TODO) vector retrieval
+│   └── scrapers/
+│       ├── fedlex.py        ← SPARQL endpoint
+│       └── entscheidsuche.py ← Court decisions API
 ├── Dockerfile
 ├── railway.toml
-└── requirements.txt
+├── requirements.txt
+├── README.md
+└── CONTEXT.md               ← Ce fichier
 ```
 
----
+## 🗃 Base de Données (Schema)
 
-## 🧠 FONCTIONNEMENT RAG
+- **users** : id (UUID), email, name, password_hash, plan, queries_this_month
+- **conversations** : id (UUID), user_id → users, title, timestamps
+- **messages** : id (SERIAL), conversation_id → conversations, role, content, sources (JSONB), tokens_used
+- **legal_documents** : id, source, external_id, doc_type, title, reference, jurisdiction, language, content, publication_date, url, metadata (JSONB)
+- **legal_chunks** : id, document_id → legal_documents, chunk_index, chunk_text, source_ref, source_url, embedding (BYTEA)
 
-### Flux actuel (en cours de développement)
-```
-Question utilisateur
-→ [TODO] Embedding question (Cohere multilingual)
-→ [TODO] Recherche vectorielle pgvector sur legal_chunks
-→ Contexte légal injecté dans system prompt
-→ Claude Sonnet génère la réponse avec citations
-→ Sources parsées depuis bloc [SOURCES]...[/SOURCES]
-→ Réponse structurée + sources JSON
-```
+## 🔌 API Routes
 
-**Note :** Le RAG vectoriel est **TODO** — actuellement Claude répond sur sa connaissance native du droit suisse.
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/auth/login` | Email/password → JWT |
+| POST | `/api/auth/signup` | Création compte → JWT |
+| GET | `/api/auth/me` | Info user depuis token |
+| POST | `/api/chat` | Message + conversation_id → réponse IA |
+| GET | `/api/conversations` | Liste conversations user |
+| GET | `/api/conversations/{id}/messages` | Messages d'une conversation |
+| GET | `/health` | Health check (DB status) |
 
-### System Prompt (règles strictes de Soluris)
-1. Répond UNIQUEMENT sur le droit suisse (fédéral + cantonal)
-2. Cite TOUJOURS les sources exactes (articles, ATF)
-3. Indique clairement l'incertitude
-4. Ne donne JAMAIS de conseil juridique personnel — information juridique uniquement
-5. Répond en français par défaut
-6. Structure claire avec références entre parenthèses
-7. Jurisprudence mentionnée quand pertinente
+## 📊 Sources de Données Juridiques
 
-### Format sources (parsé automatiquement)
-```
-[SOURCES]
-[{"reference": "Art. 41 CO", "title": "Responsabilité délictuelle", "url": "https://www.fedlex.admin.ch/..."}]
-[/SOURCES]
-```
+1. **Fedlex** (SPARQL) — Législation fédérale (~85k actes)
+2. **Tribunal fédéral** (REST API) — Jurisprudence (~450k arrêts)
+3. **Entscheidsuche** (Elasticsearch) — Décisions cantonales (~1.2M décisions)
+4. **Droit cantonal** (Scraping) — GE, VD, NE, FR, VS, JU
 
----
+## ✅ Fait
 
-## 📡 API ROUTES
+- [x] Recherche et validation du nom "Soluris" (étymologie, RDAP, trademark check)
+- [x] Création repo GitHub O-N-2950/soluris
+- [x] Architecture complète frontend + backend
+- [x] Design system v1 (dark mode tech — abandonné)
+- [x] Design system v2 (premium éditorial Navy + Or — actif)
+- [x] Logo : SVG vectoriel recréé + PNG fond transparent (3 tailles)
+- [x] Intégration logo dans le site
+- [x] Push GitHub complet
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Inscription |
-| POST | `/api/auth/login` | Connexion JWT |
-| POST | `/api/chat` | Question juridique → réponse IA |
-| GET | `/api/conversations` | Historique conversations |
-| GET | `/api/health` | Health check |
-| GET | `/` | Landing page |
-| GET | `/app` | Interface chat |
-| GET | `/login` | Page connexion |
+## 🔲 À Faire
 
----
+- [ ] **Déployer sur Railway** (besoin du Railway API token ou déploiement manuel)
+- [ ] **Enregistrer soluris.ch** (confirmé disponible)
+- [ ] **Configurer variables d'environnement** : ANTHROPIC_API_KEY, JWT_SECRET, DATABASE_URL
+- [ ] **Implémenter RAG complet** : embeddings Cohere, recherche vectorielle dans legal_chunks
+- [ ] **Pipeline d'ingestion** : scraper Fedlex + Entscheidsuche → legal_documents → chunking → embedding
+- [ ] **Adapter app.html et login.html** au nouveau design system premium
+- [ ] **Tests** : API endpoints, auth flow, chat flow
+- [ ] **Mobile responsive** : tester et ajuster sur iPhone/Android
 
-## 📚 SOURCES LÉGALES INTÉGRÉES
+## 📝 Décisions Techniques
 
-- **Fedlex** : Législation fédérale suisse via SPARQL endpoint (`fedlex.data.admin.ch`)
-  - Requêtes SPARQL en français, lois avec numéro RS
-- **Entscheidsuche** : Jurisprudence (`entscheidsuche.ch`)
-- **Tribunal fédéral** : ATF (Arrêts du Tribunal Fédéral)
-- **Cantons romands** : Jurisprudence cantonale
+| Date | Décision | Raison |
+|------|----------|--------|
+| 2026-02-21 | FastAPI over Django | Async natif, plus rapide, auto OpenAPI docs |
+| 2026-02-21 | Vanilla HTML/CSS/JS over React | Moins de dépendances, plus rapide à déployer sur Railway |
+| 2026-02-21 | asyncpg over psycopg2 | Native async, meilleure perf avec FastAPI |
+| 2026-02-21 | JWT over sessions | Stateless, scalable |
+| 2026-02-21 | Design v1→v2 | Logo premium ≠ site "startup tech", alignement nécessaire |
+| 2026-02-21 | Cormorant Garamond (serif) | Autorité institutionnelle pour la cible avocats |
 
----
+## 🔑 Environnement
 
-## ⚠️ POINTS D'ATTENTION
-
-1. **Claude = seul provider IA** — `claude-sonnet-4-20250514` via API Anthropic directe (httpx, pas de SDK)
-2. **pgvector** — Extension PostgreSQL requise pour embeddings — vérifier que Railway la supporte
-3. **RAG TODO** — L'embedding vectoriel n'est pas encore implémenté, Claude répond sur sa connaissance
-4. **Pas de conseil juridique** — Règle fondamentale du product — information uniquement, jamais de conseil personnalisé
-5. **Historique limité** — 8 derniers messages passés à Claude pour le contexte conversationnel
-6. **Tokens trackés** — Chaque réponse retourne le nombre de tokens utilisés
-
----
-
-## 🔑 VARIABLES D'ENVIRONNEMENT
-
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL + pgvector (Railway) |
-| `ANTHROPIC_API_KEY` | Clé API Anthropic |
-| `ANTHROPIC_MODEL` | Modèle Claude (défaut: `claude-sonnet-4-20250514`) |
-| `JWT_SECRET` | Secret tokens JWT |
+| Variable | Source | Status |
+|----------|--------|--------|
+| DATABASE_URL | Railway (auto) | ⏳ Pas encore déployé |
+| ANTHROPIC_API_KEY | User | ⏳ À configurer |
+| JWT_SECRET | Généré (openssl rand -hex 32) | ⏳ À configurer |
+| ANTHROPIC_MODEL | Default: claude-sonnet-4-20250514 | ✅ Codé en dur |
 
 ---
-
-## 🔗 LIENS UTILES
-
-- Site : https://soluris.ch
-- Repo : https://github.com/O-N-2950/soluris
-- Fedlex SPARQL : https://fedlex.data.admin.ch/sparqlendpoint
-- Entscheidsuche : https://www.entscheidsuche.ch
+*Dernière mise à jour : 2026-02-21 — Session : redesign premium éditorial, intégration logo, CONTEXT.md auto-update activé*

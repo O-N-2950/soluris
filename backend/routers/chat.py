@@ -4,9 +4,9 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional, List
 
-from db.database import pool
-from routers.auth import get_current_user_id
-from services.rag import generate_answer
+from backend.db.database import pool
+from backend.routers.auth import get_current_user_id
+from backend.services.rag import generate_answer
 
 router = APIRouter()
 

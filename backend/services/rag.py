@@ -5,7 +5,7 @@ import httpx
 from typing import List, Dict
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 
 SYSTEM_PROMPT = """Tu es Soluris, un assistant juridique IA spécialisé en droit suisse.
 

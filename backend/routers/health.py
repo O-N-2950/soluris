@@ -1,6 +1,6 @@
 """Health check for Railway"""
 from fastapi import APIRouter
-from db.database import pool
+from backend.db.database import pool
 
 router = APIRouter()
 

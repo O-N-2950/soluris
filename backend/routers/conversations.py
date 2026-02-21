@@ -2,8 +2,8 @@
 import json
 from fastapi import APIRouter, HTTPException, Request
 
-from db.database import pool
-from routers.auth import get_current_user_id
+from backend.db.database import pool
+from backend.routers.auth import get_current_user_id
 
 router = APIRouter()
 

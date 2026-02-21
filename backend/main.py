@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from db.database import init_db
-from routers import auth, chat, conversations, health
+from backend.db.database import init_db
+from backend.routers import auth, chat, conversations, health
 
 
 @asynccontextmanager

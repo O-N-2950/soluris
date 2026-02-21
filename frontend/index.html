@@ -6,63 +6,50 @@
   <title>Soluris — L'IA juridique suisse</title>
   <meta name="description" content="Soluris analyse la législation fédérale, la jurisprudence et le droit cantonal suisse grâce à l'IA. Réponses sourcées, vérifiables, en temps réel.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/assets/logo-icon-dark.svg">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-  <div class="ambient-bg"></div>
-  <div class="grid-overlay"></div>
-
-  <!-- Navigation -->
   <nav class="nav" id="nav">
     <a href="/" class="nav-logo">
-      <div class="logo-icon">S</div>
-      Soluris
+      <img src="/assets/logo-icon-dark.svg" alt="Soluris" class="nav-logo-img">
+      <span class="nav-logo-text">SOLURIS</span>
     </a>
     <div class="nav-links">
       <a href="#features">Fonctionnalités</a>
       <a href="#sources">Sources</a>
       <a href="#pricing">Tarifs</a>
     </div>
-    <a href="/login" class="nav-cta">Accès gratuit →</a>
+    <a href="/login.html" class="nav-cta">Accès gratuit</a>
   </nav>
 
-  <!-- Hero -->
   <section class="hero">
-    <div class="hero-badge">
-      <span class="pulse"></span>
-      Recherche juridique IA · Droit suisse
+    <div class="hero-badge fade-up"><span class="dot"></span>Intelligence juridique · Droit suisse</div>
+    <h1 class="fade-up delay-1">La <em>solution du droit</em><br>suisse par l'IA</h1>
+    <p class="subtitle fade-up delay-2">Interrogez la législation fédérale, la jurisprudence du Tribunal fédéral et le droit cantonal. Réponses sourcées, vérifiables, en temps réel.</p>
+    <div class="hero-actions fade-up delay-3">
+      <a href="/login.html?signup=true" class="btn-gold">Essai gratuit 14 jours</a>
+      <a href="#features" class="btn-ghost">Découvrir la plateforme</a>
     </div>
-    <h1>La <span class="gradient-text">solution du droit</span> suisse par l'IA</h1>
-    <p class="subtitle">
-      Interrogez la législation fédérale, la jurisprudence du Tribunal fédéral et le droit cantonal. Réponses sourcées, vérifiables, en temps réel.
-    </p>
-    <div class="hero-actions">
-      <a href="/login?signup=true" class="btn-primary">Commencer gratuitement →</a>
-      <a href="#features" class="btn-secondary">Découvrir</a>
-    </div>
-
-    <!-- Demo Window -->
-    <div class="demo-window">
+    <div class="demo-window fade-up delay-4">
       <div class="demo-titlebar">
-        <span class="demo-dot red"></span>
-        <span class="demo-dot yellow"></span>
-        <span class="demo-dot green"></span>
-        <span>soluris.ch/app</span>
+        <span class="demo-dot r"></span><span class="demo-dot y"></span><span class="demo-dot g"></span>
+        <span style="margin-left:8px">soluris.ch</span>
       </div>
       <div class="demo-body">
         <div class="demo-msg user-msg">
-          <div class="demo-avatar user">U</div>
+          <div class="demo-avatar user">O</div>
           <div class="demo-bubble">Quels sont les délais de congé en droit du bail à Genève ?</div>
         </div>
         <div class="demo-msg ai-msg">
           <div class="demo-avatar ai">S</div>
           <div class="demo-bubble">
-            Selon l'art. 266c CO, le bail d'habitation peut être résilié moyennant un délai de congé de <strong>3 mois pour le terme fixé par l'usage local</strong>, ou à défaut pour la fin d'un trimestre de bail. À Genève, les usages locaux prévoient généralement…
-            <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-              <span class="demo-source">📄 Art. 266c CO</span>
-              <span class="demo-source">⚖️ ATF 140 III 496</span>
-              <span class="demo-source">📋 LDTR/GE art. 3</span>
+            Selon l'art. 266c CO, le bail d'habitation peut être résilié moyennant un délai de congé de <strong>3 mois pour le terme fixé par l'usage local</strong>, ou à défaut pour la fin d'un trimestre de bail. À Genève, les usages locaux prévoient généralement le terme du 31 mars ou du 30 septembre.
+            <div class="demo-sources">
+              <span class="demo-source">Art. 266c CO</span>
+              <span class="demo-source">ATF 140 III 496</span>
+              <span class="demo-source">LDTR/GE art. 3</span>
             </div>
           </div>
         </div>
@@ -70,218 +57,84 @@
     </div>
   </section>
 
-  <!-- Trust Bar -->
   <section class="trust">
-    <p>Sources juridiques intégrées</p>
+    <p>Sources juridiques officielles intégrées</p>
     <div class="trust-logos">
-      <span>Fedlex</span>
-      <span>Tribunal fédéral</span>
-      <span>Entscheidsuche</span>
-      <span>Cantons romands</span>
-      <span>Recueils officiels</span>
+      <span>Fedlex</span><span>Tribunal fédéral</span><span>Entscheidsuche</span><span>Cantons romands</span><span>Recueils officiels</span>
     </div>
   </section>
 
-  <!-- Features -->
+  <div class="divider"><div class="divider-line"></div></div>
+
   <section class="section section-center" id="features">
-    <span class="section-label">✦ Fonctionnalités</span>
+    <span class="section-label">Fonctionnalités</span>
     <h2 class="section-title">Recherche juridique<br>de nouvelle génération</h2>
-    <p class="section-desc">
-      Soluris combine recherche sémantique, bases de données officielles et génération contextuelle pour des réponses précises et sourcées.
-    </p>
+    <p class="section-desc">Soluris combine recherche sémantique, bases de données officielles et génération contextuelle pour des réponses précises et sourcées.</p>
     <div class="features-grid">
-      <div class="feature-card fade-in">
-        <div class="feature-icon indigo">🔍</div>
-        <h3>Recherche hybride</h3>
-        <p>Combinez recherche sémantique par vecteurs et recherche classique par mots-clés pour trouver les textes les plus pertinents.</p>
-      </div>
-      <div class="feature-card fade-in">
-        <div class="feature-icon cyan">✓</div>
-        <h3>Sources vérifiées</h3>
-        <p>Chaque réponse cite ses sources avec liens directs vers Fedlex, les ATF et les recueils cantonaux. Vérifiable en un clic.</p>
-      </div>
-      <div class="feature-card fade-in">
-        <div class="feature-icon green">🏛</div>
-        <h3>Multi-juridictionnel</h3>
-        <p>Droit fédéral, cantonal et communal. Couvrez toutes les juridictions pertinentes pour votre pratique en Suisse romande.</p>
-      </div>
-      <div class="feature-card fade-in">
-        <div class="feature-icon amber">🔒</div>
-        <h3>Hébergement suisse</h3>
-        <p>Infrastructure 100% en Suisse. Vos données et requêtes ne quittent jamais le territoire helvétique. Conforme LPD.</p>
-      </div>
+      <div class="feature-card fade-in"><div class="feature-icon">⌕</div><h3>Recherche hybride</h3><p>Combinez recherche sémantique par vecteurs et recherche classique par mots-clés pour trouver les textes les plus pertinents.</p></div>
+      <div class="feature-card fade-in"><div class="feature-icon">✓</div><h3>Sources vérifiées</h3><p>Chaque réponse cite ses sources avec liens directs vers Fedlex, les ATF et les recueils cantonaux. Vérifiable en un clic.</p></div>
+      <div class="feature-card fade-in"><div class="feature-icon">⚖</div><h3>Multi-juridictionnel</h3><p>Droit fédéral, cantonal et communal. Couvrez toutes les juridictions pertinentes pour votre pratique en Suisse romande.</p></div>
+      <div class="feature-card fade-in"><div class="feature-icon">◈</div><h3>Hébergement suisse</h3><p>Infrastructure 100% en Suisse. Vos données et requêtes ne quittent jamais le territoire helvétique. Conforme LPD.</p></div>
     </div>
   </section>
 
-  <!-- Sources -->
+  <div class="divider"><div class="divider-line"></div></div>
+
   <section class="section" id="sources">
-    <span class="section-label">◆ Sources de données</span>
+    <span class="section-label">Sources de données</span>
     <h2 class="section-title">Les sources du droit suisse,<br>structurées pour l'IA</h2>
-    <p class="section-desc">
-      Soluris ingère et indexe en continu les principales bases juridiques suisses.
-    </p>
+    <p class="section-desc" style="margin-bottom:60px">Soluris ingère et indexe en continu les principales bases juridiques suisses.</p>
     <div class="sources-grid">
-      <div class="source-card fade-in">
-        <div class="source-header">
-          <h3>Fedlex</h3>
-          <span class="source-badge api">API SPARQL</span>
-        </div>
-        <p>Législation fédérale complète : Recueil officiel (RO), Recueil systématique (RS), messages du Conseil fédéral.</p>
-        <div class="source-count">~85'000 actes législatifs</div>
-      </div>
-      <div class="source-card fade-in">
-        <div class="source-header">
-          <h3>Tribunal fédéral</h3>
-          <span class="source-badge api">REST API</span>
-        </div>
-        <p>Jurisprudence du TF : arrêts publiés (ATF) et non publiés, recherche par numéro de référence ou texte libre.</p>
-        <div class="source-count">~450'000 arrêts</div>
-      </div>
-      <div class="source-card fade-in">
-        <div class="source-header">
-          <h3>Entscheidsuche</h3>
-          <span class="source-badge api">Elasticsearch</span>
-        </div>
-        <p>Décisions des tribunaux cantonaux et fédéraux via la plateforme Open Data. Couverture multi-cantonale.</p>
-        <div class="source-count">~1'200'000 décisions</div>
-      </div>
-      <div class="source-card fade-in">
-        <div class="source-header">
-          <h3>Droit cantonal</h3>
-          <span class="source-badge scrape">Scraping</span>
-        </div>
-        <p>Législation cantonale romande : Genève (RSG), Vaud (RSV), Neuchâtel, Fribourg, Valais, Jura.</p>
-        <div class="source-count">Cantons romands</div>
-      </div>
+      <div class="source-card fade-in"><div class="source-header"><h3>Fedlex</h3><span class="source-badge api">SPARQL</span></div><p>Législation fédérale complète : Recueil officiel, Recueil systématique, messages du Conseil fédéral.</p><div class="source-count">~85'000 actes législatifs</div></div>
+      <div class="source-card fade-in"><div class="source-header"><h3>Tribunal fédéral</h3><span class="source-badge api">REST API</span></div><p>Jurisprudence du TF : arrêts publiés (ATF) et non publiés, recherche par référence ou texte libre.</p><div class="source-count">~450'000 arrêts</div></div>
+      <div class="source-card fade-in"><div class="source-header"><h3>Entscheidsuche</h3><span class="source-badge api">Elasticsearch</span></div><p>Décisions des tribunaux cantonaux et fédéraux via la plateforme Open Data. Couverture multi-cantonale.</p><div class="source-count">~1'200'000 décisions</div></div>
+      <div class="source-card fade-in"><div class="source-header"><h3>Droit cantonal</h3><span class="source-badge scrape">Scraping</span></div><p>Législation cantonale romande : Genève, Vaud, Neuchâtel, Fribourg, Valais, Jura.</p><div class="source-count">6 cantons romands</div></div>
     </div>
   </section>
 
-  <!-- How it works -->
+  <div class="divider"><div class="divider-line"></div></div>
+
   <section class="section section-center">
-    <span class="section-label">→ Comment ça marche</span>
+    <span class="section-label">Processus</span>
     <h2 class="section-title">Trois étapes, une réponse sourcée</h2>
-    <p class="section-desc">
-      De votre question en langage naturel à une réponse juridique complète avec références.
-    </p>
+    <p class="section-desc">De votre question en langage naturel à une réponse juridique complète avec références.</p>
     <div class="steps">
-      <div class="step fade-in">
-        <div class="step-num">1</div>
-        <h3>Posez votre question</h3>
-        <p>En français, en langage naturel. Comme vous le feriez à un confrère spécialisé.</p>
-      </div>
-      <div class="step fade-in">
-        <div class="step-num">2</div>
-        <h3>Recherche hybride</h3>
-        <p>Soluris interroge simultanément Fedlex, le TF et les bases cantonales par vecteurs et mots-clés.</p>
-      </div>
-      <div class="step fade-in">
-        <div class="step-num">3</div>
-        <h3>Réponse contextuelle</h3>
-        <p>L'IA génère une synthèse juridique avec citations exactes et liens vers les sources officielles.</p>
-      </div>
+      <div class="step fade-in"><div class="step-num">1</div><h3>Posez votre question</h3><p>En français, en langage naturel. Comme vous le feriez à un confrère spécialisé.</p></div>
+      <div class="step fade-in"><div class="step-num">2</div><h3>Recherche hybride</h3><p>Soluris interroge simultanément Fedlex, le TF et les bases cantonales par vecteurs et mots-clés.</p></div>
+      <div class="step fade-in"><div class="step-num">3</div><h3>Réponse contextuelle</h3><p>L'IA génère une synthèse juridique avec citations exactes et liens vers les sources officielles.</p></div>
     </div>
   </section>
 
-  <!-- Pricing -->
+  <div class="divider"><div class="divider-line"></div></div>
+
   <section class="section section-center" id="pricing">
-    <span class="section-label">◇ Tarifs</span>
+    <span class="section-label">Tarifs</span>
     <h2 class="section-title">Essai gratuit 14 jours</h2>
     <p class="section-desc">Sans carte bancaire. Accès complet à toutes les fonctionnalités.</p>
     <div class="pricing-grid">
-      <div class="price-card fade-in">
-        <h3>Solo</h3>
-        <div class="price">CHF 149<span>/mois</span></div>
-        <div class="price-desc">Pour l'avocat indépendant</div>
-        <ul class="price-features">
-          <li>200 requêtes / mois</li>
-          <li>Toutes les sources fédérales</li>
-          <li>2 cantons romands</li>
-          <li>Historique 90 jours</li>
-          <li>Support email</li>
-        </ul>
-        <a href="/login?signup=true" class="price-btn outline">Commencer l'essai</a>
-      </div>
-      <div class="price-card featured fade-in">
-        <h3>Cabinet</h3>
-        <div class="price">CHF 449<span>/mois</span></div>
-        <div class="price-desc">Pour les études d'avocats</div>
-        <ul class="price-features">
-          <li>Requêtes illimitées</li>
-          <li>Toutes les sources</li>
-          <li>Tous les cantons romands</li>
-          <li>Historique illimité</li>
-          <li>5 utilisateurs inclus</li>
-          <li>Support prioritaire</li>
-          <li>API access</li>
-        </ul>
-        <a href="/login?signup=true" class="price-btn primary">Commencer l'essai</a>
-      </div>
-      <div class="price-card fade-in">
-        <h3>Enterprise</h3>
-        <div class="price">Sur mesure</div>
-        <div class="price-desc">Grandes études & administrations</div>
-        <ul class="price-features">
-          <li>Volume illimité</li>
-          <li>Sources personnalisées</li>
-          <li>SSO / SAML</li>
-          <li>SLA garanti</li>
-          <li>Utilisateurs illimités</li>
-          <li>Account manager dédié</li>
-          <li>On-premise possible</li>
-        </ul>
-        <a href="mailto:contact@soluris.ch" class="price-btn outline">Nous contacter</a>
-      </div>
+      <div class="price-card fade-in"><h3>Solo</h3><div class="price">CHF 149<span>/mois</span></div><div class="price-desc">Pour l'avocat indépendant</div><ul class="price-features"><li>200 requêtes / mois</li><li>Toutes les sources fédérales</li><li>2 cantons romands</li><li>Historique 90 jours</li><li>Support email</li></ul><a href="/login.html?signup=true" class="price-btn outline">Commencer l'essai</a></div>
+      <div class="price-card featured fade-in"><h3>Cabinet</h3><div class="price">CHF 449<span>/mois</span></div><div class="price-desc">Pour les études d'avocats</div><ul class="price-features"><li>Requêtes illimitées</li><li>Toutes les sources</li><li>Tous les cantons romands</li><li>Historique illimité</li><li>5 utilisateurs inclus</li><li>Support prioritaire</li><li>Accès API</li></ul><a href="/login.html?signup=true" class="price-btn gold">Commencer l'essai</a></div>
+      <div class="price-card fade-in"><h3>Enterprise</h3><div class="price">Sur mesure</div><div class="price-desc">Grandes études & administrations</div><ul class="price-features"><li>Volume illimité</li><li>Sources personnalisées</li><li>SSO / SAML</li><li>SLA garanti</li><li>Utilisateurs illimités</li><li>Account manager dédié</li><li>On-premise possible</li></ul><a href="mailto:contact@soluris.ch" class="price-btn outline">Nous contacter</a></div>
     </div>
   </section>
 
-  <!-- CTA -->
   <section class="cta-section fade-in">
-    <h2>Prêt à transformer votre recherche juridique ?</h2>
+    <h2>Prêt à transformer votre<br>recherche juridique ?</h2>
     <p>Rejoignez les juristes suisses qui gagnent des heures chaque semaine.</p>
-    <a href="/login?signup=true" class="btn-primary">Démarrer l'essai gratuit →</a>
+    <a href="/login.html?signup=true" class="btn-gold">Démarrer l'essai gratuit</a>
   </section>
 
-  <!-- Footer -->
   <footer class="footer">
     <div class="footer-grid">
       <div class="footer-brand">
-        <div class="nav-logo">
-          <div class="logo-icon">S</div>
-          Soluris
-        </div>
+        <a href="/" class="nav-logo"><img src="/assets/logo-icon-dark.svg" alt="Soluris" class="nav-logo-img"><span class="nav-logo-text">SOLURIS</span></a>
         <p>La solution du droit suisse par l'intelligence artificielle. Recherche juridique augmentée pour les professionnels.</p>
       </div>
-      <div>
-        <h4>Produit</h4>
-        <ul class="footer-links">
-          <li><a href="#features">Fonctionnalités</a></li>
-          <li><a href="#sources">Sources</a></li>
-          <li><a href="#pricing">Tarifs</a></li>
-          <li><a href="#">API</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>Entreprise</h4>
-        <ul class="footer-links">
-          <li><a href="#">À propos</a></li>
-          <li><a href="#">Blog</a></li>
-          <li><a href="#">Carrières</a></li>
-          <li><a href="mailto:contact@soluris.ch">Contact</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>Légal</h4>
-        <ul class="footer-links">
-          <li><a href="#">Conditions générales</a></li>
-          <li><a href="#">Politique de confidentialité</a></li>
-          <li><a href="#">Mentions légales</a></li>
-        </ul>
-      </div>
+      <div><h4>Produit</h4><ul class="footer-links"><li><a href="#features">Fonctionnalités</a></li><li><a href="#sources">Sources</a></li><li><a href="#pricing">Tarifs</a></li><li><a href="#">API</a></li></ul></div>
+      <div><h4>Entreprise</h4><ul class="footer-links"><li><a href="#">À propos</a></li><li><a href="#">Blog</a></li><li><a href="#">Carrières</a></li><li><a href="mailto:contact@soluris.ch">Contact</a></li></ul></div>
+      <div><h4>Légal</h4><ul class="footer-links"><li><a href="#">Conditions générales</a></li><li><a href="#">Confidentialité</a></li><li><a href="#">Mentions légales</a></li></ul></div>
     </div>
-    <div class="footer-bottom">
-      <span>© 2026 Soluris · Genève, Suisse</span>
-      <span>Hébergé en Suisse 🇨🇭</span>
-    </div>
+    <div class="footer-bottom"><span>© 2026 Soluris · Genève, Suisse</span><span>Hébergé en Suisse 🇨🇭</span></div>
   </footer>
 
   <script src="/js/landing.js"></script>

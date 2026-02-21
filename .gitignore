@@ -8,3 +8,5 @@ dist/
 build/
 .DS_Store
 node_modules/
+frontend/index.html.bak
+frontend/preview-*.html

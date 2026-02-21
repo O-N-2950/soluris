@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- 
+    SOLURIS Logo — Hexagonal Neural Network
+    Colors: Navy #0B1F3B, Taupe #8A8578, Gold #C6A75E
+  -->
+  
+  <defs>
+    <!-- Gold center glow -->
+    <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#C6A75E" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#C6A75E" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- Outer hexagon (large, taupe/gray) -->
+  <polygon 
+    points="100,22 156,44 156,96 100,118 44,96 44,44" 
+    stroke="#8A8578" stroke-width="1" fill="none" opacity="0.6"
+    transform="translate(0,20) scale(1.05)" 
+  />
+  
+  <!-- Outer connecting lines (taupe, lighter) -->
+  <g stroke="#8A8578" stroke-width="0.8" opacity="0.5">
+    <!-- Top extensions -->
+    <line x1="100" y1="18" x2="85" y2="8"/>
+    <line x1="100" y1="18" x2="115" y2="8"/>
+    <!-- Top-right extensions -->
+    <line x1="158" y1="44" x2="170" y2="34"/>
+    <line x1="158" y1="44" x2="172" y2="50"/>
+    <!-- Bottom-right extensions -->
+    <line x1="158" y1="108" x2="172" y2="110"/>
+    <line x1="158" y1="108" x2="168" y2="122"/>
+    <!-- Bottom extensions -->
+    <line x1="100" y1="142" x2="115" y2="152"/>
+    <line x1="100" y1="142" x2="85" y2="152"/>
+    <!-- Bottom-left extensions -->
+    <line x1="42" y1="108" x2="28" y2="110"/>
+    <line x1="42" y1="108" x2="32" y2="122"/>
+    <!-- Top-left extensions -->
+    <line x1="42" y1="44" x2="30" y2="34"/>
+    <line x1="42" y1="44" x2="28" y2="50"/>
+  </g>
+  
+  <!-- Outer hexagon (navy, main) -->
+  <polygon 
+    points="100,25 155,50 155,110 100,135 45,110 45,50" 
+    stroke="#0B1F3B" stroke-width="1.5" fill="none"
+  />
+  
+  <!-- Middle hexagon -->
+  <polygon 
+    points="100,42 138,60 138,100 100,118 62,100 62,60" 
+    stroke="#0B1F3B" stroke-width="1.2" fill="none"
+  />
+  
+  <!-- Inner hexagon -->
+  <polygon 
+    points="100,58 122,70 122,90 100,102 78,90 78,70" 
+    stroke="#0B1F3B" stroke-width="1" fill="none"
+  />
+  
+  <!-- Innermost hexagon (smallest) -->
+  <polygon 
+    points="100,68 110,74 110,86 100,92 90,86 90,74" 
+    stroke="#0B1F3B" stroke-width="0.8" fill="none"
+  />
+  
+  <!-- Connecting lines between hexagons (vertical/diagonal spokes) -->
+  <g stroke="#0B1F3B" stroke-width="0.8" opacity="0.7">
+    <!-- Top spoke -->
+    <line x1="100" y1="25" x2="100" y2="68"/>
+    <!-- Top-right spoke -->
+    <line x1="155" y1="50" x2="110" y2="74"/>
+    <!-- Bottom-right spoke -->
+    <line x1="155" y1="110" x2="110" y2="86"/>
+    <!-- Bottom spoke -->
+    <line x1="100" y1="135" x2="100" y2="92"/>
+    <!-- Bottom-left spoke -->
+    <line x1="45" y1="110" x2="90" y2="86"/>
+    <!-- Top-left spoke -->
+    <line x1="45" y1="50" x2="90" y2="74"/>
+  </g>
+  
+  <!-- Outer taupe dots (extensions) -->
+  <g fill="#8A8578">
+    <circle cx="85" cy="8" r="3"/>
+    <circle cx="115" cy="8" r="3"/>
+    <circle cx="170" cy="34" r="3"/>
+    <circle cx="172" cy="50" r="2.5"/>
+    <circle cx="172" cy="110" r="2.5"/>
+    <circle cx="168" cy="122" r="3"/>
+    <circle cx="115" cy="152" r="3"/>
+    <circle cx="85" cy="152" r="3"/>
+    <circle cx="32" cy="122" r="3"/>
+    <circle cx="28" cy="110" r="2.5"/>
+    <circle cx="28" cy="50" r="2.5"/>
+    <circle cx="30" cy="34" r="3"/>
+  </g>
+  
+  <!-- Navy dots (hexagon vertices) -->
+  <g fill="#0B1F3B">
+    <!-- Outer hexagon vertices -->
+    <circle cx="100" cy="25" r="3.5"/>
+    <circle cx="155" cy="50" r="3.5"/>
+    <circle cx="155" cy="110" r="3.5"/>
+    <circle cx="100" cy="135" r="3.5"/>
+    <circle cx="45" cy="110" r="3.5"/>
+    <circle cx="45" cy="50" r="3.5"/>
+    
+    <!-- Middle hexagon vertices -->
+    <circle cx="100" cy="42" r="2.5"/>
+    <circle cx="138" cy="60" r="2.5"/>
+    <circle cx="138" cy="100" r="2.5"/>
+    <circle cx="100" cy="118" r="2.5"/>
+    <circle cx="62" cy="100" r="2.5"/>
+    <circle cx="62" cy="60" r="2.5"/>
+    
+    <!-- Inner hexagon vertices -->
+    <circle cx="100" cy="58" r="2"/>
+    <circle cx="122" cy="70" r="2"/>
+    <circle cx="122" cy="90" r="2"/>
+    <circle cx="100" cy="102" r="2"/>
+    <circle cx="78" cy="90" r="2"/>
+    <circle cx="78" cy="70" r="2"/>
+  </g>
+  
+  <!-- Gold center glow -->
+  <circle cx="100" cy="80" r="16" fill="url(#goldGlow)"/>
+  
+  <!-- Gold center dot -->
+  <circle cx="100" cy="80" r="5.5" fill="#C6A75E"/>
+  
+  <!-- SOLURIS text -->
+  <text 
+    x="100" y="180" 
+    text-anchor="middle" 
+    font-family="'Cormorant Garamond', Georgia, serif" 
+    font-size="26" 
+    font-weight="600" 
+    letter-spacing="6"
+    fill="#0B1F3B"
+  >SOLURIS</text>
+</svg>

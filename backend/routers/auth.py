@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 
-from backend.db.database import pool
+from backend.db import database
 
 router = APIRouter()
 pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -51,7 +51,7 @@ async def get_current_user_id(request: Request) -> str:
 
 @router.post("/login")
 async def login(req: LoginRequest):
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT id, password_hash FROM users WHERE email = $1", req.email
         )
@@ -64,7 +64,7 @@ async def login(req: LoginRequest):
 async def signup(req: SignupRequest):
     if len(req.password) < 8:
         raise HTTPException(400, "Mot de passe : 8 caractères minimum")
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         exists = await conn.fetchval("SELECT 1 FROM users WHERE email = $1", req.email)
         if exists:
             raise HTTPException(409, "Un compte avec cet email existe déjà")
@@ -78,7 +78,7 @@ async def signup(req: SignupRequest):
 @router.get("/me")
 async def get_me(request: Request):
     user_id = await get_current_user_id(request)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT id, email, name, plan, queries_this_month, created_at FROM users WHERE id = $1::uuid",
             user_id,

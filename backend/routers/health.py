@@ -1,6 +1,6 @@
 """Health check for Railway"""
 from fastapi import APIRouter
-from backend.db.database import pool
+from backend.db import database
 
 router = APIRouter()
 
@@ -9,8 +9,8 @@ router = APIRouter()
 async def health():
     db_ok = False
     try:
-        if pool is not None:
-            async with pool.acquire() as conn:
+        if database.pool is not None:
+            async with database.pool.acquire() as conn:
                 await conn.fetchval("SELECT 1")
                 db_ok = True
     except Exception:

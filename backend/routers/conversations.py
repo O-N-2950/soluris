@@ -2,7 +2,7 @@
 import json
 from fastapi import APIRouter, HTTPException, Request
 
-from backend.db.database import pool
+from backend.db import database
 from backend.routers.auth import get_current_user_id
 
 router = APIRouter()
@@ -11,7 +11,7 @@ router = APIRouter()
 @router.get("/conversations")
 async def list_conversations(request: Request):
     user_id = await get_current_user_id(request)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT id, title, created_at, updated_at FROM conversations WHERE user_id = $1::uuid ORDER BY updated_at DESC LIMIT 50",
             user_id,
@@ -22,7 +22,7 @@ async def list_conversations(request: Request):
 @router.get("/conversations/{conv_id}/messages")
 async def get_messages(conv_id: str, request: Request):
     user_id = await get_current_user_id(request)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         conv = await conn.fetchrow(
             "SELECT id FROM conversations WHERE id = $1::uuid AND user_id = $2::uuid",
             conv_id, user_id,

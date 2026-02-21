@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional, List
 
-from backend.db.database import pool
+from backend.db import database
 from backend.routers.auth import get_current_user_id
 from backend.services.rag import generate_answer
 
@@ -26,7 +26,7 @@ class ChatRequest(BaseModel):
 async def chat(req: ChatRequest, request: Request):
     user_id = await get_current_user_id(request)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         # Get or create conversation
         if req.conversation_id:
             conv = await conn.fetchrow(

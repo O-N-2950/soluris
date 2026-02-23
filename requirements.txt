@@ -11,3 +11,6 @@ python-multipart==0.0.9
 SPARQLWrapper==2.0.0
 beautifulsoup4==4.12.3
 requests==2.32.3
+# RAG — Embeddings + Vector search (ajout audit 23 fév 2026)
+cohere==5.13.4
+pgvector==0.3.6

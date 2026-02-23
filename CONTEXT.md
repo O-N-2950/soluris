@@ -2,6 +2,8 @@
 
 > Fichier mis à jour automatiquement à chaque session. Sert de mémoire persistante entre les conversations.
 
+## Dernière mise à jour : 2026-02-23 (Audit stratégique Groupe NEO + Analyse concurrentielle)
+
 ## 🎯 Vision
 
 **Soluris** = "Solutio" (solution) + "Iuris" (du droit). Plateforme d'intelligence juridique suisse propulsée par l'IA. Cible : avocats, études, magistrats en Suisse romande.
@@ -9,7 +11,54 @@
 - **Domaine choisi** : `soluris.ch` (confirmé disponible via RDAP — pas encore enregistré)
 - **Positionnement** : Premium, institutionnel, "la référence de confiance"
 - **Pricing** : Essentiel CHF 89/mo, Pro CHF 149/mo, Cabinet CHF 349/mo, Enterprise sur mesure. Essai 7j gratuit sans CB.
-- **Concurrent principal** : Silex (Ex Nunc Intelligence) — CHF 120/mo, EPFL spin-off, $2.15M levés, ~100s utilisateurs
+- **Positionnement recommandé** : Entité séparée (Soluris SA) pour crédibilité juridique et levée de fonds possible
+
+## 🏟️ Analyse Concurrentielle (23 fév 2026)
+
+### Silex (Ex Nunc Intelligence) — CONCURRENT PRINCIPAL
+- **Funding** : $2.15M pre-seed (oversubscribed), led by Spicehaus Partners
+- **Équipe** : 10+ personnes, CEO avocate (Me Kyriaki Bongard), cofondatrice Zoé Berry
+- **Origine** : EPFL Innovation Park, Lausanne
+- **Status** : LIVE — centaines de cabinets d'avocats, notaires, départements juridiques
+- **Stack** : Propriétaire — pipeline IA re-engineered from scratch, pas un wrapper LLM
+- **Forces** : Base de données propriétaire (fédérale + cantonale), zéro hallucination revendiqué, intégration Agora (Geste Informatique)
+- **Faiblesses** : Pricing non publié (probablement cher), pas d'écosystème multi-services
+- **Prix** : Primé PERL, Venture Kick 1&2, FIT Digital, EPFL Booster, top 3 ZKB Pionierpreis
+
+### Swiss-Noxtua (Helbing Lichtenhahn + Noxtua Berlin)
+- **Funding** : Backed par C.H.Beck (DE), MANZ (AT), Helbing Lichtenhahn (CH) — gros éditeurs juridiques
+- **Status** : En développement, liste d'attente sur swiss-noxtua.ch
+- **Forces** : Accès exclusif aux Commentaires romands + Basler Kommentare, ISO 42001/27001 certifié, 4 langues
+- **Faiblesses** : Pas encore lancé, gros consortium = lent, approche top-down
+- **Centre tech** : Berlin + nouveau centre CH prévu
+
+### SwissLegalAI
+- **Status** : Actif
+- **Forces** : Gestion documentaire complète (même manuscrits), intégrations Outlook/Teams/SharePoint, podcast IA des dossiers
+- **Pricing** : Sur mesure
+- **Faiblesses** : Moins de profondeur juridique pure que Silex
+
+### Ailegis
+- **Équipe** : 4 personnes (2 business + 2 ML)
+- **Status** : Prototype avancé, basé sur OpenAI
+- **Forces** : Anonymisation de texte juridique, focus SME
+- **Faiblesses** : Petit, pas de traction visible, prototype
+
+### Lexplorer
+- **Forces** : Recherche sémantique de jurisprudence (comprend le sens, pas juste mots-clés)
+- **Faiblesses** : Focus narrow (search only), pas d'assistant conversationnel
+
+### Autres acteurs
+- **REF-Lex** (FER Genève) : IA spécialisée droit du travail, générateurs de documents
+- **Weblaw AI** : Contenus Jusletter, formations, pas d'outil IA direct
+- **Law·rence** : Mise en relation avec avocats (marketplace, pas IA juridique)
+
+## 💡 Avantages Uniques Soluris
+
+1. **Écosystème Groupe NEO** : Seule legal tech qui peut cross-sell TournePage (divorce), WIN WIN (assurances), MATCHO (fiduciaires), immo.cool (immobilier). Chaque client d'une app NEO = prospect Soluris.
+2. **Claude API** : Qualité supérieure en français juridique vs OpenAI. Coût maîtrisé (~CHF 30/mo pour 10k requêtes avec Haiku 4.5).
+3. **Positionnement prix** : Silex vise le premium. Soluris peut capturer le mid-market (avocats solo, petites études) à CHF 89/mo.
+4. **Agilité** : Pas de consortium, pas de comité. Ship fast, iterate avec feedback direct des utilisateurs.
 
 ## 🏗 Stack Technique
 
@@ -21,7 +70,8 @@
 | Auth | JWT (python-jose, bcrypt, 72h expiration) |
 | IA | Claude Haiku 4.5 (claude-haiku-4-5-20251001) — ~30 CHF/mo pour 10k req |
 | Embeddings | Cohere multilingual-v3 (prévu, pas encore implémenté) |
-| Hébergement | SwissCenter (Suisse) |
+| Scraping | SPARQLWrapper + BeautifulSoup (Fedlex SPARQL) |
+| Hébergement | Railway |
 | Repo | https://github.com/O-N-2950/soluris |
 
 ## 🎨 Design System (v2 — Premium Éditorial)
@@ -55,12 +105,7 @@ soluris/
 │   │   ├── app.js           ← Chat + API integration
 │   │   ├── auth.js          ← Login/signup logic
 │   │   └── landing.js       ← Scroll animations
-│   └── assets/
-│       ├── logo-soluris.svg       ← Logo complet avec texte
-│       ├── logo-icon-dark.svg     ← Hexagone seul (navbar, favicon)
-│       ├── logo-soluris.png       ← PNG fond transparent (522x392)
-│       ├── logo-soluris-md.png    ← PNG 80px height
-│       └── logo-soluris-nav.png   ← PNG 40px height
+│   └── assets/              ← Logos SVG/PNG
 ├── backend/
 │   ├── main.py              ← FastAPI entry, CORS, static serving
 │   ├── db/database.py       ← asyncpg pool, schema init
@@ -74,10 +119,11 @@ soluris/
 │       ├── fedlex.py        ← SPARQL scraper complet (list/scrape/priority modes)
 │       └── entscheidsuche.py ← Court decisions API
 ├── data/
-│   └── fedlex/              ← JSON scrapés (gitignored, regénérer avec --mode priority)
+│   └── fedlex/              ← JSON scrapés (gitignored)
 ├── Dockerfile
 ├── railway.toml
 ├── requirements.txt
+├── TODO.md                  ← Plan d'implémentation détaillé
 ├── README.md
 └── CONTEXT.md               ← Ce fichier
 ```
@@ -88,97 +134,55 @@ soluris/
 - **conversations** : id (UUID), user_id → users, title, timestamps
 - **messages** : id (SERIAL), conversation_id → conversations, role, content, sources (JSONB), tokens_used
 - **legal_documents** : id, source, external_id, doc_type, title, reference, jurisdiction, language, content, publication_date, url, metadata (JSONB)
-- **legal_chunks** : id, document_id → legal_documents, chunk_index, chunk_text, source_ref, source_url, embedding (BYTEA)
+- **legal_chunks** : id, document_id → legal_documents, chunk_index, chunk_text, source_ref, source_url, embedding (BYTEA → à migrer en VECTOR)
 
-## 🔌 API Routes
+## 🔴 Gap Critique (audit 23 fév 2026)
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| POST | `/api/auth/login` | Email/password → JWT |
-| POST | `/api/auth/signup` | Création compte → JWT |
-| GET | `/api/auth/me` | Info user depuis token |
-| POST | `/api/chat` | Message + conversation_id → réponse IA |
-| GET | `/api/conversations` | Liste conversations user |
-| GET | `/api/conversations/{id}/messages` | Messages d'une conversation |
-| GET | `/health` | Health check (DB status) |
+Le RAG n'est PAS implémenté. Dans `backend/services/rag.py`, ligne ~30 :
+```python
+# TODO: Add RAG retrieval here
+# 1. Embed the question using Cohere multilingual
+# 2. Search legal_chunks by vector similarity
+# 3. Prepend relevant chunks to system prompt
+# For now, we rely on Claude's knowledge of Swiss law
+```
 
-## 📊 Sources de Données Juridiques
+Sans RAG, Soluris = wrapper Claude avec un bon prompt. Valeur = ~0.
+Avec RAG + 500 lois + 5000 arrêts ATF = vrai outil juridique. Valeur = CHF 89-349/mo × milliers d'avocats.
 
-1. **Fedlex** (SPARQL + HTML filestore) — Législation fédérale consolidée. Endpoint: `fedlex.data.admin.ch/sparqlendpoint`. Ontologie JOLux. ~12 500 actes dans le RS, ~5 100 en vigueur. HTML structuré avec balises `<article>`. ✅ Scraper opérationnel.
-2. **Tribunal fédéral** (REST API) — Jurisprudence (~450k arrêts)
-3. **Entscheidsuche** (Elasticsearch) — Décisions cantonales (~1.2M décisions)
-4. **Droit cantonal** (Scraping) — GE, VD, NE, FR, VS, JU
+## 🗺 Roadmap Prioritaire
 
-## ✅ Fait
+### Phase 1 — Parité minimale (semaines 1-4) ← PRIORITÉ ABSOLUE
+- [ ] Activer pgvector dans PostgreSQL Railway
+- [ ] Migrer legal_chunks.embedding de BYTEA vers VECTOR(1024)
+- [ ] Exécuter fedlex.py --mode priority (ingérer les 15 codes principaux)
+- [ ] Ajouter cohere aux requirements, implémenter batch embedding
+- [ ] Implémenter recherche vectorielle dans rag.py
+- [ ] Réécrire system prompt pour grounding strict
+- [ ] Ingérer 5'000 arrêts ATF via entscheidsuche.py
+- [ ] Tester réduction hallucinations (score confiance cosinus)
 
-- [x] Recherche et validation du nom "Soluris" (étymologie, RDAP, trademark check)
-- [x] Création repo GitHub O-N-2950/soluris
-- [x] Architecture complète frontend + backend
-- [x] Design system v1 (dark mode tech — abandonné)
-- [x] Design system v2 (premium éditorial Navy + Or — actif)
-- [x] Logo : SVG vectoriel recréé + PNG fond transparent (3 tailles)
-- [x] Intégration logo dans le site
-- [x] Push GitHub complet
-- [x] Analyse concurrentielle Silex (features, pricing, traction, tech stack)
-- [x] Stratégie pricing révisée (Essentiel 89, Pro 149, Cabinet 349 — undercut Silex de 26%)
-- [x] Modèle IA final : Claude Haiku 4.5 (~30 CHF/mois pour 10k requêtes)
-- [x] Hébergement suisse confirmé : SwissCenter
-- [x] Plan d'implémentation 4 phases créé (voir TODO.md)
-- [x] **Scraper Fedlex opérationnel** (`backend/scrapers/fedlex.py`) — SPARQL + HTML parsing
-- [x] **5 973 articles** extraits des 15 codes prioritaires (CO, CC, CP, CPC, CPP, LP, LTF, LDIP, LAT, LEI, Cst, LFus, LPGA, LAVS, LAMal)
-- [x] Tâche 1.1 du TODO complétée : API SPARQL Fedlex explorée et intégrée
+### Phase 2 — Lancement beta (semaines 5-8)
+- [ ] Essai gratuit 7 jours (trial_expires_at dans users)
+- [ ] Stripe intégration (plans Essentiel/Pro/Cabinet)
+- [ ] Enregistrer soluris.ch
+- [ ] Beta privée avec 10 avocats romands
+- [ ] Citations interactives dans le frontend (clic → texte complet)
 
-## 🔲 À Faire
+### Phase 3 — Scale (mois 3-6)
+- [ ] Droit cantonal (26 cantons)
+- [ ] Doctrine (si partenariat éditeur)
+- [ ] Export Word/PDF des recherches
+- [ ] API pour intégration dans logiciels d'avocats
+- [ ] Création Soluris SA
 
-→ **Voir `TODO.md` pour le plan détaillé avec 4 phases et ~60 tâches.**
+## ⚠️ Sécurité (audit 23 fév 2026)
+- CORS trop permissif : `https://*.up.railway.app` → restreindre à l'URL exacte de prod
+- Pas de rate limiting → ajouter slowapi
+- Pas de crash monitor → copier le pattern de TournePage/MATCHO
 
-Résumé des phases :
-1. **Phase 1 — Parité minimale** (Sem. 1-4) : Ingestion Fedlex + TF, RAG pgvector, citations, anti-hallucination, essai 7j, quota enforcement
-2. **Phase 2 — Différenciation** (Mois 2-3) : Filtres canton/domaine, droit cantonal romand, export Word/PDF, dossiers, Stripe
-3. **Phase 3 — Avantage compétitif** (Mois 3-6) : Upload de documents, templates juridiques, mode adversarial, veille juridique, multi-user
-4. **Phase 4 — Écosystème** (Mois 6+) : API publique, data silos, soft law, analytics
-
-## 📝 Décisions Techniques
-
-| Date | Décision | Raison |
-|------|----------|--------|
-| 2026-02-21 | FastAPI over Django | Async natif, plus rapide, auto OpenAPI docs |
-| 2026-02-21 | Vanilla HTML/CSS/JS over React | Moins de dépendances, plus rapide à déployer sur Railway |
-| 2026-02-21 | asyncpg over psycopg2 | Native async, meilleure perf avec FastAPI |
-| 2026-02-21 | JWT over sessions | Stateless, scalable |
-| 2026-02-21 | Design v1→v2 | Logo premium ≠ site "startup tech", alignement nécessaire |
-| 2026-02-21 | Cormorant Garamond (serif) | Autorité institutionnelle pour la cible avocats |
-| 2026-02-23 | Claude Haiku 4.5 over Sonnet | 90% qualité, 1/3 du coût, rentable dès 1 client Essentiel |
-| 2026-02-23 | Pricing agressif (89/149/349) | Undercut Silex (120 CHF), compétitif pour les petites études |
-| 2026-02-23 | Essai 7j (pas 14j) | Aligné sur Silex, suffisant pour évaluer l'outil |
-| 2026-02-23 | Phase 1 = RAG d'abord | Sans données juridiques = wrapper ChatGPT, aucun avocat ne paie |
-| 2026-02-23 | Hébergement SwissCenter | Souveraineté des données suisse, argument commercial vs Silex |
-| 2026-02-23 | Fedlex via SPARQL+HTML | API SPARQL pour métadonnées, filestore HTML pour le texte. ConsolidationAbstract→Consolidation→Expression→Manifestation. 5 973 articles extraits des 15 codes prioritaires |
-
-## 🔑 Environnement
-
-| Variable | Source | Status |
-|----------|--------|--------|
-| DATABASE_URL | SwissCenter (PostgreSQL) | ⏳ À configurer |
-| ANTHROPIC_API_KEY | User | ⏳ À configurer |
-| JWT_SECRET | Généré (openssl rand -hex 32) | ⏳ À configurer |
-| ANTHROPIC_MODEL | claude-haiku-4-5-20251001 | ✅ Décidé |
-| COHERE_API_KEY | Pour embeddings | ⏳ À obtenir |
-
-## 🏆 Analyse Concurrentielle (Résumé)
-
-| | Silex | Soluris (cible MVP) |
-|---|---|---|
-| Prix | CHF 120/mo | CHF 89/mo (Essentiel) |
-| Base juridique | Fédéral + 26 cantons + soft law | Fédéral + 6 cantons romands |
-| Jurisprudence | TF + cantonale | TF (+ cantonale Phase 2) |
-| Citations sources | ✅ | ✅ (Phase 1) |
-| Hébergement CH | ✅ | ✅ SwissCenter |
-| Export Word/PDF | ✅ | Phase 2 |
-| Intégration Agora | ✅ | ❌ |
-| Upload documents | En dev | Phase 3 |
-| Mode adversarial | ❌ | Phase 3 (différenciateur) |
-| Équipe | 10+ personnes, $2.15M | 1 développeur |
-
----
-*Dernière mise à jour : 2026-02-23 — Session : scraper Fedlex SPARQL opérationnel, 5 973 articles extraits des 15 codes prioritaires (CO, CC, CP, CPC, CPP, LP, LTF, etc.), fix consolidation future dates*
+## 🔗 Groupe NEO
+Soluris fait partie de l'écosystème Groupe NEO. Synergies identifiées :
+- Client TournePage (divorce) → prospect Soluris (questions juridiques)
+- Fiduciaire MATCHO → prospect Soluris (droit fiscal, commercial)
+- Client WIN WIN → prospect Soluris (droit des assurances)

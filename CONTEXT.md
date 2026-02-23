@@ -2,8 +2,6 @@
 
 > Fichier mis à jour automatiquement à chaque session. Sert de mémoire persistante entre les conversations.
 
-## Dernière mise à jour : 2026-02-23 (RAG implémenté + Security fixes + Analyse concurrentielle)
-
 ## 🎯 Vision
 
 **Soluris** = "Solutio" (solution) + "Iuris" (du droit). Plateforme d'intelligence juridique suisse propulsée par l'IA. Cible : avocats, études, magistrats en Suisse romande.
@@ -11,54 +9,7 @@
 - **Domaine choisi** : `soluris.ch` (confirmé disponible via RDAP — pas encore enregistré)
 - **Positionnement** : Premium, institutionnel, "la référence de confiance"
 - **Pricing** : Essentiel CHF 89/mo, Pro CHF 149/mo, Cabinet CHF 349/mo, Enterprise sur mesure. Essai 7j gratuit sans CB.
-- **Positionnement recommandé** : Entité séparée (Soluris SA) pour crédibilité juridique et levée de fonds possible
-
-## 🏟️ Analyse Concurrentielle (23 fév 2026)
-
-### Silex (Ex Nunc Intelligence) — CONCURRENT PRINCIPAL
-- **Funding** : $2.15M pre-seed (oversubscribed), led by Spicehaus Partners
-- **Équipe** : 10+ personnes, CEO avocate (Me Kyriaki Bongard), cofondatrice Zoé Berry
-- **Origine** : EPFL Innovation Park, Lausanne
-- **Status** : LIVE — centaines de cabinets d'avocats, notaires, départements juridiques
-- **Stack** : Propriétaire — pipeline IA re-engineered from scratch, pas un wrapper LLM
-- **Forces** : Base de données propriétaire (fédérale + cantonale), zéro hallucination revendiqué, intégration Agora (Geste Informatique)
-- **Faiblesses** : Pricing non publié (probablement cher), pas d'écosystème multi-services
-- **Prix** : Primé PERL, Venture Kick 1&2, FIT Digital, EPFL Booster, top 3 ZKB Pionierpreis
-
-### Swiss-Noxtua (Helbing Lichtenhahn + Noxtua Berlin)
-- **Funding** : Backed par C.H.Beck (DE), MANZ (AT), Helbing Lichtenhahn (CH) — gros éditeurs juridiques
-- **Status** : En développement, liste d'attente sur swiss-noxtua.ch
-- **Forces** : Accès exclusif aux Commentaires romands + Basler Kommentare, ISO 42001/27001 certifié, 4 langues
-- **Faiblesses** : Pas encore lancé, gros consortium = lent, approche top-down
-- **Centre tech** : Berlin + nouveau centre CH prévu
-
-### SwissLegalAI
-- **Status** : Actif
-- **Forces** : Gestion documentaire complète (même manuscrits), intégrations Outlook/Teams/SharePoint, podcast IA des dossiers
-- **Pricing** : Sur mesure
-- **Faiblesses** : Moins de profondeur juridique pure que Silex
-
-### Ailegis
-- **Équipe** : 4 personnes (2 business + 2 ML)
-- **Status** : Prototype avancé, basé sur OpenAI
-- **Forces** : Anonymisation de texte juridique, focus SME
-- **Faiblesses** : Petit, pas de traction visible, prototype
-
-### Lexplorer
-- **Forces** : Recherche sémantique de jurisprudence (comprend le sens, pas juste mots-clés)
-- **Faiblesses** : Focus narrow (search only), pas d'assistant conversationnel
-
-### Autres acteurs
-- **REF-Lex** (FER Genève) : IA spécialisée droit du travail, générateurs de documents
-- **Weblaw AI** : Contenus Jusletter, formations, pas d'outil IA direct
-- **Law·rence** : Mise en relation avec avocats (marketplace, pas IA juridique)
-
-## 💡 Avantages Uniques Soluris
-
-1. **Écosystème Groupe NEO** : Seule legal tech qui peut cross-sell TournePage (divorce), WIN WIN (assurances), MATCHO (fiduciaires), immo.cool (immobilier). Chaque client d'une app NEO = prospect Soluris.
-2. **Claude API** : Qualité supérieure en français juridique vs OpenAI. Coût maîtrisé (~CHF 30/mo pour 10k requêtes avec Haiku 4.5).
-3. **Positionnement prix** : Silex vise le premium. Soluris peut capturer le mid-market (avocats solo, petites études) à CHF 89/mo.
-4. **Agilité** : Pas de consortium, pas de comité. Ship fast, iterate avec feedback direct des utilisateurs.
+- **Concurrent principal** : Silex (Ex Nunc Intelligence) — CHF 120/mo, EPFL spin-off, $2.15M levés, ~100s utilisateurs
 
 ## 🏗 Stack Technique
 
@@ -70,8 +21,7 @@
 | Auth | JWT (python-jose, bcrypt, 72h expiration) |
 | IA | Claude Haiku 4.5 (claude-haiku-4-5-20251001) — ~30 CHF/mo pour 10k req |
 | Embeddings | Cohere multilingual-v3 (prévu, pas encore implémenté) |
-| Scraping | SPARQLWrapper + BeautifulSoup (Fedlex SPARQL) |
-| Hébergement | Railway |
+| Hébergement | SwissCenter (Suisse) |
 | Repo | https://github.com/O-N-2950/soluris |
 
 ## 🎨 Design System (v2 — Premium Éditorial)
@@ -92,63 +42,6 @@ Redesign complet aligné sur le logo (hexagone réseau neuronal + point doré ce
 
 **Esthétique :** Éditoriale, lignes fines dorées, espacement généreux, pas de glow excessif. "Banque privée genevoise" plutôt que "startup tech".
 
-
-
-## 🚀 Implémentation RAG (23 fév 2026)
-
-### Fichiers créés/modifiés
-1. **backend/services/rag.py** — Pipeline RAG complet :
-   - `embed_text()` : Embedding question via Cohere multilingual-v3
-   - `embed_texts_batch()` : Batch embedding pour ingestion
-   - `search_legal_chunks()` : Recherche vectorielle pgvector (cosine similarity, seuil 0.35)
-   - `format_chunks_as_context()` : Formatage des chunks pour injection dans prompt Claude
-   - `generate_answer()` : Pipeline complet (embed → search → inject → Claude → parse sources)
-   - 2 modes : SYSTEM_PROMPT_WITH_RAG (contexte juridique injecté) et SYSTEM_PROMPT_NO_RAG (fallback)
-
-2. **backend/db/database.py** — pgvector activé :
-   - `CREATE EXTENSION vector`
-   - `legal_chunks.embedding vector(1024)` (migration auto BYTEA → vector)
-   - Index HNSW pour recherche rapide
-   - `trial_expires_at` ajouté dans users
-   - `rag_chunks` ajouté dans messages
-   - Stats au démarrage
-
-3. **backend/scripts/embed_chunks.py** — Batch embedding :
-   - `python -m backend.scripts.embed_chunks` (nouveaux chunks)
-   - `python -m backend.scripts.embed_chunks --all` (re-embed tout)
-   - `python -m backend.scripts.embed_chunks --stats` (stats)
-   - Batch 96, rate limiting, retry on error
-
-4. **backend/scripts/ingest_fedlex.py** — Ingestion Fedlex → DB :
-   - `python -m backend.scripts.ingest_fedlex` (tous les JSON)
-   - `python -m backend.scripts.ingest_fedlex --scrape` (scrape + ingest)
-   - Gère documents + chunks, upsert on conflict
-
-5. **requirements.txt** — Ajout `cohere==5.13.4` + `pgvector==0.3.6`
-
-### Pipeline d'activation complet
-```bash
-# 1. Scraper les 15 codes prioritaires
-python -m backend.scrapers.fedlex --mode priority
-
-# 2. Ingérer dans PostgreSQL
-python -m backend.scripts.ingest_fedlex
-
-# 3. Générer les embeddings Cohere
-COHERE_API_KEY=xxx python -m backend.scripts.embed_chunks
-
-# 4. Vérifier
-python -m backend.scripts.embed_chunks --stats
-```
-
-### Variables d'environnement requises
-- `COHERE_API_KEY` : Clé API Cohere (obtenir sur dashboard.cohere.com)
-- `ANTHROPIC_API_KEY` : Déjà configuré
-- `DATABASE_URL` : Déjà configuré (Railway PostgreSQL)
-
-### Sécurité corrigée
-- ✅ CORS wildcard Railway retiré (main.py) — utilise RAILWAY_PUBLIC_DOMAIN env var
-
 ## 📁 Structure du Projet
 
 ```
@@ -162,28 +55,30 @@ soluris/
 │   │   ├── app.js           ← Chat + API integration
 │   │   ├── auth.js          ← Login/signup logic
 │   │   └── landing.js       ← Scroll animations
-│   └── assets/              ← Logos SVG/PNG
+│   └── assets/
+│       ├── logo-soluris.svg       ← Logo complet avec texte
+│       ├── logo-icon-dark.svg     ← Hexagone seul (navbar, favicon)
+│       ├── logo-soluris.png       ← PNG fond transparent (522x392)
+│       ├── logo-soluris-md.png    ← PNG 80px height
+│       └── logo-soluris-nav.png   ← PNG 40px height
 ├── backend/
-│   ├── main.py              ← FastAPI entry, CORS (restricted), static serving
-│   ├── db/database.py       ← asyncpg pool + pgvector + HNSW index
+│   ├── main.py              ← FastAPI entry, CORS, static serving
+│   ├── db/database.py       ← asyncpg pool, schema init
 │   ├── routers/
 │   │   ├── auth.py          ← JWT login/signup/me
 │   │   ├── chat.py          ← RAG endpoint /api/chat
 │   │   ├── conversations.py ← History /api/conversations
 │   │   └── health.py        ← /health check
-│   ├── services/rag.py      ← Pipeline RAG complet (Cohere + pgvector + Claude)
-│   ├── scripts/
-│   │   ├── embed_chunks.py  ← Batch embedding Cohere multilingual-v3
-│   │   └── ingest_fedlex.py ← Ingestion JSON Fedlex → PostgreSQL
+│   ├── services/rag.py      ← Claude API + (TODO) vector retrieval
 │   └── scrapers/
 │       ├── fedlex.py        ← SPARQL scraper complet (list/scrape/priority modes)
-│       └── entscheidsuche.py ← Court decisions API
+│       └── entscheidsuche.py ← TF jurisprudence scraper (Elasticsearch API, ATF+BGer)
 ├── data/
-│   └── fedlex/              ← JSON scrapés (gitignored)
+│   ├── fedlex/              ← JSON scrapés (gitignored, regénérer avec --mode priority)
+│   └── jurisprudence/       ← JSON scrapés (gitignored, regénérer avec --mode atf)
 ├── Dockerfile
 ├── railway.toml
 ├── requirements.txt
-├── TODO.md                  ← Plan d'implémentation détaillé
 ├── README.md
 └── CONTEXT.md               ← Ce fichier
 ```
@@ -194,55 +89,102 @@ soluris/
 - **conversations** : id (UUID), user_id → users, title, timestamps
 - **messages** : id (SERIAL), conversation_id → conversations, role, content, sources (JSONB), tokens_used
 - **legal_documents** : id, source, external_id, doc_type, title, reference, jurisdiction, language, content, publication_date, url, metadata (JSONB)
-- **legal_chunks** : id, document_id → legal_documents, chunk_index, chunk_text, source_ref, source_url, embedding (BYTEA → à migrer en VECTOR)
+- **legal_chunks** : id, document_id → legal_documents, chunk_index, chunk_text, source_ref, source_url, embedding (BYTEA)
 
-## 🔴 Gap Critique (audit 23 fév 2026)
+## 🔌 API Routes
 
-Le RAG n'est PAS implémenté. Dans `backend/services/rag.py`, ligne ~30 :
-```python
-# TODO: Add RAG retrieval here
-# 1. Embed the question using Cohere multilingual
-# 2. Search legal_chunks by vector similarity
-# 3. Prepend relevant chunks to system prompt
-# For now, we rely on Claude's knowledge of Swiss law
-```
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/auth/login` | Email/password → JWT |
+| POST | `/api/auth/signup` | Création compte → JWT |
+| GET | `/api/auth/me` | Info user depuis token |
+| POST | `/api/chat` | Message + conversation_id → réponse IA |
+| GET | `/api/conversations` | Liste conversations user |
+| GET | `/api/conversations/{id}/messages` | Messages d'une conversation |
+| GET | `/health` | Health check (DB status) |
 
-Sans RAG, Soluris = wrapper Claude avec un bon prompt. Valeur = ~0.
-Avec RAG + 500 lois + 5000 arrêts ATF = vrai outil juridique. Valeur = CHF 89-349/mo × milliers d'avocats.
+## 📊 Sources de Données Juridiques
 
-## 🗺 Roadmap Prioritaire
+1. **Fedlex** (SPARQL + HTML filestore) — Législation fédérale consolidée. Endpoint: `fedlex.data.admin.ch/sparqlendpoint`. Ontologie JOLux. ~12 500 actes dans le RS, ~5 100 en vigueur. HTML structuré avec balises `<article>`. ✅ Scraper opérationnel.
+2. **Tribunal fédéral / Entscheidsuche** (Elasticsearch API) — `entscheidsuche.ch/_search.php`. Index v2. Hiérarchie : CH_BGE_999 (ATF publiés, ~20k), CH_BGer (tous arrêts, ~175k), CH_BVGE (TAF, ~84k). Données multilingues (fr/de/it). Chunks structurés : regeste, considérants, dispositif. ✅ Scraper opérationnel.
+3. **Entscheidsuche cantonale** — Mêmes API, index par canton (AG, GE, VD, etc.). ~600k+ décisions tous tribunaux confondus.
+4. **Droit cantonal** (Scraping) — GE, VD, NE, FR, VS, JU
 
-### Phase 1 — Parité minimale (semaines 1-4) ← PRIORITÉ ABSOLUE
-- [x] Activer pgvector dans PostgreSQL Railway ✅ (database.py mis à jour)
-- [x] Migrer legal_chunks.embedding de BYTEA vers VECTOR(1024) ✅ (migration auto dans database.py)
-- [ ] Exécuter fedlex.py --mode priority (ingérer les 15 codes principaux)
-- [ ] Ajouter cohere aux requirements, implémenter batch embedding
-- [ ] Implémenter recherche vectorielle dans rag.py
-- [ ] Réécrire system prompt pour grounding strict
-- [ ] Ingérer 5'000 arrêts ATF via entscheidsuche.py
-- [ ] Tester réduction hallucinations (score confiance cosinus)
+## ✅ Fait
 
-### Phase 2 — Lancement beta (semaines 5-8)
-- [ ] Essai gratuit 7 jours (trial_expires_at dans users)
-- [ ] Stripe intégration (plans Essentiel/Pro/Cabinet)
-- [ ] Enregistrer soluris.ch
-- [ ] Beta privée avec 10 avocats romands
-- [ ] Citations interactives dans le frontend (clic → texte complet)
+- [x] Recherche et validation du nom "Soluris" (étymologie, RDAP, trademark check)
+- [x] Création repo GitHub O-N-2950/soluris
+- [x] Architecture complète frontend + backend
+- [x] Design system v1 (dark mode tech — abandonné)
+- [x] Design system v2 (premium éditorial Navy + Or — actif)
+- [x] Logo : SVG vectoriel recréé + PNG fond transparent (3 tailles)
+- [x] Intégration logo dans le site
+- [x] Push GitHub complet
+- [x] Analyse concurrentielle Silex (features, pricing, traction, tech stack)
+- [x] Stratégie pricing révisée (Essentiel 89, Pro 149, Cabinet 349 — undercut Silex de 26%)
+- [x] Modèle IA final : Claude Haiku 4.5 (~30 CHF/mois pour 10k requêtes)
+- [x] Hébergement suisse confirmé : SwissCenter
+- [x] Plan d'implémentation 4 phases créé (voir TODO.md)
+- [x] **Scraper Fedlex opérationnel** (`backend/scrapers/fedlex.py`) — SPARQL + HTML parsing
+- [x] **5 973 articles** extraits des 15 codes prioritaires (CO, CC, CP, CPC, CPP, LP, LTF, LDIP, LAT, LEI, Cst, LFus, LPGA, LAVS, LAMal)
+- [x] Tâche 1.1 du TODO complétée : API SPARQL Fedlex explorée et intégrée
 
-### Phase 3 — Scale (mois 3-6)
-- [ ] Droit cantonal (26 cantons)
-- [ ] Doctrine (si partenariat éditeur)
-- [ ] Export Word/PDF des recherches
-- [ ] API pour intégration dans logiciels d'avocats
-- [ ] Création Soluris SA
+- [x] **Scraper Entscheidsuche opérationnel** (`backend/scrapers/entscheidsuche.py`) — API Elasticsearch, pagination search_after, parsing HTML structuré (regeste/considérants/dispositif)
+- [x] **5 697 ATF (FR)** disponibles via API, 100 testés avec succès (1 409 chunks, 0 échecs). 175k+ arrêts BGer accessibles.
+- [x] Tâche 1.2 du TODO en cours : API entscheidsuche explorée, scraper fonctionnel, données validées
 
-## ⚠️ Sécurité (audit 23 fév 2026)
-- CORS trop permissif : `https://*.up.railway.app` → restreindre à l'URL exacte de prod
-- Pas de rate limiting → ajouter slowapi
-- Pas de crash monitor → copier le pattern de TournePage/MATCHO
+## 🔲 À Faire
 
-## 🔗 Groupe NEO
-Soluris fait partie de l'écosystème Groupe NEO. Synergies identifiées :
-- Client TournePage (divorce) → prospect Soluris (questions juridiques)
-- Fiduciaire MATCHO → prospect Soluris (droit fiscal, commercial)
-- Client WIN WIN → prospect Soluris (droit des assurances)
+→ **Voir `TODO.md` pour le plan détaillé avec 4 phases et ~60 tâches.**
+
+Résumé des phases :
+1. **Phase 1 — Parité minimale** (Sem. 1-4) : Ingestion Fedlex + TF, RAG pgvector, citations, anti-hallucination, essai 7j, quota enforcement
+2. **Phase 2 — Différenciation** (Mois 2-3) : Filtres canton/domaine, droit cantonal romand, export Word/PDF, dossiers, Stripe
+3. **Phase 3 — Avantage compétitif** (Mois 3-6) : Upload de documents, templates juridiques, mode adversarial, veille juridique, multi-user
+4. **Phase 4 — Écosystème** (Mois 6+) : API publique, data silos, soft law, analytics
+
+## 📝 Décisions Techniques
+
+| Date | Décision | Raison |
+|------|----------|--------|
+| 2026-02-21 | FastAPI over Django | Async natif, plus rapide, auto OpenAPI docs |
+| 2026-02-21 | Vanilla HTML/CSS/JS over React | Moins de dépendances, plus rapide à déployer sur Railway |
+| 2026-02-21 | asyncpg over psycopg2 | Native async, meilleure perf avec FastAPI |
+| 2026-02-21 | JWT over sessions | Stateless, scalable |
+| 2026-02-21 | Design v1→v2 | Logo premium ≠ site "startup tech", alignement nécessaire |
+| 2026-02-21 | Cormorant Garamond (serif) | Autorité institutionnelle pour la cible avocats |
+| 2026-02-23 | Claude Haiku 4.5 over Sonnet | 90% qualité, 1/3 du coût, rentable dès 1 client Essentiel |
+| 2026-02-23 | Pricing agressif (89/149/349) | Undercut Silex (120 CHF), compétitif pour les petites études |
+| 2026-02-23 | Essai 7j (pas 14j) | Aligné sur Silex, suffisant pour évaluer l'outil |
+| 2026-02-23 | Phase 1 = RAG d'abord | Sans données juridiques = wrapper ChatGPT, aucun avocat ne paie |
+| 2026-02-23 | Hébergement SwissCenter | Souveraineté des données suisse, argument commercial vs Silex |
+| 2026-02-23 | Fedlex via SPARQL+HTML | API SPARQL pour métadonnées, filestore HTML pour le texte. ConsolidationAbstract→Consolidation→Expression→Manifestation. 5 973 articles extraits des 15 codes prioritaires |
+| 2026-02-23 | Entscheidsuche via Elasticsearch | API `_search.php` avec pagination search_after. 5 697 ATF (FR) + 57k BGer (FR). Parsing HTML : regeste/considérants/dispositif. Chunks ~3000 chars max |
+
+## 🔑 Environnement
+
+| Variable | Source | Status |
+|----------|--------|--------|
+| DATABASE_URL | SwissCenter (PostgreSQL) | ⏳ À configurer |
+| ANTHROPIC_API_KEY | User | ⏳ À configurer |
+| JWT_SECRET | Généré (openssl rand -hex 32) | ⏳ À configurer |
+| ANTHROPIC_MODEL | claude-haiku-4-5-20251001 | ✅ Décidé |
+| COHERE_API_KEY | Pour embeddings | ⏳ À obtenir |
+
+## 🏆 Analyse Concurrentielle (Résumé)
+
+| | Silex | Soluris (cible MVP) |
+|---|---|---|
+| Prix | CHF 120/mo | CHF 89/mo (Essentiel) |
+| Base juridique | Fédéral + 26 cantons + soft law | Fédéral + 6 cantons romands |
+| Jurisprudence | TF + cantonale | TF (+ cantonale Phase 2) |
+| Citations sources | ✅ | ✅ (Phase 1) |
+| Hébergement CH | ✅ | ✅ SwissCenter |
+| Export Word/PDF | ✅ | Phase 2 |
+| Intégration Agora | ✅ | ❌ |
+| Upload documents | En dev | Phase 3 |
+| Mode adversarial | ❌ | Phase 3 (différenciateur) |
+| Équipe | 10+ personnes, $2.15M | 1 développeur |
+
+---
+*Dernière mise à jour : 2026-02-23 — Session : scraper Entscheidsuche (jurisprudence TF) opérationnel, 5 697 ATF FR + 175k BGer accessibles via Elasticsearch API, parsing HTML structuré (regeste/considérants/dispositif)*

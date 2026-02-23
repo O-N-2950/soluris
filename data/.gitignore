@@ -1,3 +1,7 @@
-# Raw scraped data (too large for git — regenerate with: python -m backend.scrapers.fedlex --mode priority)
+# Raw scraped data (too large for git)
+# Regenerate: python -m backend.scrapers.fedlex --mode priority
 fedlex/*.json
 !fedlex/.gitkeep
+# Regenerate: python -m backend.scrapers.entscheidsuche --mode atf
+jurisprudence/*.json
+!jurisprudence/.gitkeep

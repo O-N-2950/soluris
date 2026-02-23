@@ -175,3 +175,4 @@ async def get_me(request: Request):
         "trial_expired": trial_expired,
         "created_at": str(user["created_at"]),
     }
+

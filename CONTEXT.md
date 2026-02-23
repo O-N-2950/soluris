@@ -21,7 +21,7 @@
 | Auth | JWT (python-jose, bcrypt, 72h expiration) |
 | IA | Claude Haiku 4.5 (~30 CHF/mo pour 10k req) |
 | Embeddings | Cohere multilingual-v3 (1024 dim) |
-| Hébergement | Railway (PostgreSQL + service web) |
+| Hébergement | Railway (PostgreSQL pgvector/pg16 + FastAPI) |
 | Repo | https://github.com/O-N-2950/soluris |
 
 ## 🎨 Design System (v2 — Premium Éditorial)
@@ -102,6 +102,18 @@ soluris/
 | DELETE | `/api/conversations/{id}` | Supprimer |
 | GET | `/health` | Healthcheck Railway |
 
+
+## 🚀 Déploiement
+
+- **URL production** : https://soluris-web-production.up.railway.app
+- **Railway project** : `soluris` (ID: d03ee6e4-0aab-457d-af2a-015b3a5b196d)
+- **Services** :
+  - `postgres` : pgvector/pgvector:pg16 + volume persistent
+  - `soluris-web` : Dockerfile → FastAPI/uvicorn, auto-deploy depuis GitHub main
+- **Variables requises** : DATABASE_URL, JWT_SECRET, ANTHROPIC_API_KEY (manquante), COHERE_API_KEY (manquante)
+- **Domaine Railway** : soluris-web-production.up.railway.app
+- **Custom domain** : soluris.ch (pas encore configuré — domaine pas encore acheté)
+
 ## 📊 Progression TODO
 
 - [x] Phase 1.1 : Ingestion Fedlex — 5 973 articles, 15 codes
@@ -111,9 +123,9 @@ soluris/
 - [x] Phase 1.5 : Réduction hallucinations — grounding strict + score confiance
 - [x] Phase 1.6 : Essai gratuit 7 jours — trial_expires_at + middleware
 - [x] Phase 1.7 : Quota enforcement — plans Essentiel/Pro/Cabinet + compteur
-- [ ] Phase 1.8 : Landing page mise à jour
-- [ ] Déploiement Railway (PostgreSQL + service)
+- [x] Phase 1.8 : Landing page — pricing 89/149/349, essai 7j, badges souveraineté
+- [x] Déploiement Railway — PostgreSQL pgvector + FastAPI, healthcheck OK
 - [ ] Ingestion données en production
 
 ---
-*Dernière mise à jour : 2026-02-23 — Session : scraper entscheidsuche v2 (Elasticsearch), déploiement Railway*
+*Dernière mise à jour : 2026-02-23 — Déploiement Railway réussi, auth+chat+quota fonctionnels, filtres canton/domaine ajoutés*

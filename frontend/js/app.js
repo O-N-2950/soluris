@@ -9,14 +9,37 @@ let isStreaming = false;
 function getToken() { return localStorage.getItem('token'); }
 function headers() { return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` }; }
 
+// Filters — persist in localStorage
+function saveFilters() {
+  const j = document.getElementById('filterJurisdiction');
+  const d = document.getElementById('filterDomain');
+  if (j) localStorage.setItem('soluris_jurisdiction', j.value);
+  if (d) localStorage.setItem('soluris_domain', d.value);
+}
+function loadFilters() {
+  const j = document.getElementById('filterJurisdiction');
+  const d = document.getElementById('filterDomain');
+  if (j) j.value = localStorage.getItem('soluris_jurisdiction') || '';
+  if (d) d.value = localStorage.getItem('soluris_domain') || '';
+}
+function getFilters() {
+  const j = document.getElementById('filterJurisdiction');
+  const d = document.getElementById('filterDomain');
+  return {
+    jurisdiction: j?.value || null,
+    legal_domain: d?.value || null,
+  };
+}
+
 // Init
 document.addEventListener('DOMContentLoaded', async () => {
   if (!getToken()) return window.location.href = '/login';
+  loadFilters();
   await loadUser();
   await loadConversations();
 });
 
-// Load user info
+// Load user info + quota display
 async function loadUser() {
   try {
     const res = await fetch(`${API}/auth/me`, { headers: headers() });
@@ -24,7 +47,17 @@ async function loadUser() {
     const user = await res.json();
     const el = document.getElementById('userInfo');
     const initials = (user.name || 'U').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
-    el.innerHTML = `<div class="avatar">${initials}</div><span>${user.name}</span>`;
+    
+    // Show user + plan info
+    let planBadge = '';
+    if (user.plan === 'trial') {
+      const daysLeft = user.trial_days_left || '?';
+      planBadge = `<span style="font-size:0.7rem;color:var(--gold);opacity:0.8">Essai · ${daysLeft}j restants</span>`;
+    } else if (user.plan) {
+      planBadge = `<span style="font-size:0.7rem;color:var(--text-secondary);opacity:0.8">${user.plan}</span>`;
+    }
+    
+    el.innerHTML = `<div class="avatar">${initials}</div><div style="display:flex;flex-direction:column;gap:2px"><span>${user.name}</span>${planBadge}</div>`;
   } catch (e) { console.error('User load error:', e); }
 }
 
@@ -61,7 +94,8 @@ function renderConversations(convs) {
     if (!items.length) continue;
     list.innerHTML += `<div class="conv-group-label">${label}</div>`;
     items.forEach(c => {
-      list.innerHTML += `<div class="conv-item ${c.id === conversationId ? 'active' : ''}" onclick="loadConversation('${c.id}')" title="${c.title}">💬 ${c.title || 'Conversation'}</div>`;
+      const active = c.id === conversationId ? 'active' : '';
+      list.innerHTML += `<div class="conv-item ${active}" onclick="loadConversation('${c.id}')" title="${c.title}">💬 ${c.title || 'Conversation'}</div>`;
     });
   }
 }
@@ -73,15 +107,14 @@ async function loadConversation(id) {
     if (!res.ok) return;
     messages = await res.json();
     showMessages();
-    loadConversations(); // refresh active state
+    loadConversations();
   } catch (e) { console.error('Load conv error:', e); }
 }
 
 // Display
 function showMessages() {
-  const welcome = document.getElementById('welcomeScreen');
+  document.getElementById('welcomeScreen').style.display = 'none';
   const area = document.getElementById('messagesArea');
-  welcome.style.display = 'none';
   area.classList.add('active');
   area.innerHTML = '';
   messages.forEach(m => appendMessage(m.role, m.content, m.sources));
@@ -100,7 +133,9 @@ function appendMessage(role, content, sources) {
   if (sources && sources.length) {
     html += '<div class="msg-sources">';
     sources.forEach(s => {
-      html += `<a href="${s.url || '#'}" target="_blank" class="source-tag">📄 ${s.reference || s.title}</a>`;
+      const url = s.url || '#';
+      const label = s.reference || s.title || 'Source';
+      html += `<a href="${url}" target="_blank" class="source-tag" title="${s.title || ''}">📄 ${label}</a>`;
     });
     html += '</div>';
   }
@@ -109,48 +144,77 @@ function appendMessage(role, content, sources) {
   area.scrollTop = area.scrollHeight;
 }
 
+// Update quota display after each message
+function updateQuotaDisplay(quota) {
+  if (!quota) return;
+  const el = document.getElementById('quotaDisplay');
+  if (!el) return;
+  if (quota.limit === -1) {
+    el.textContent = `${quota.used} requêtes · ${quota.plan}`;
+  } else {
+    el.textContent = `${quota.used}/${quota.limit} requêtes · ${quota.plan}`;
+  }
+}
+
 // Send message
 async function sendMessage() {
   const input = document.getElementById('messageInput');
   const text = input.value.trim();
   if (!text || isStreaming) return;
 
-  // Show messages area
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('messagesArea').classList.add('active');
 
-  // Add user message
   appendMessage('user', text, null);
   messages.push({ role: 'user', content: text });
   input.value = '';
   autoResize(input);
 
-  // Show typing
   isStreaming = true;
   document.getElementById('sendBtn').disabled = true;
   document.getElementById('typingIndicator').classList.add('active');
 
   try {
+    const filters = getFilters();
     const res = await fetch(`${API}/chat`, {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify({
         message: text,
         conversation_id: conversationId,
-        history: messages.slice(-10)
+        history: messages.slice(-10),
+        jurisdiction: filters.jurisdiction || null,
+        legal_domain: filters.legal_domain || null,
       })
     });
 
     if (res.status === 401) return window.location.href = '/login';
+    if (res.status === 402) {
+      appendMessage('assistant', '⏰ Votre essai gratuit est terminé. [Passez à un abonnement](/pricing) pour continuer à utiliser Soluris.', null);
+      return;
+    }
+    if (res.status === 429) {
+      appendMessage('assistant', '📊 Vous avez atteint votre quota mensuel de requêtes. Passez au plan supérieur pour continuer.', null);
+      return;
+    }
     if (!res.ok) { const err = await res.json(); throw new Error(err.detail || 'Erreur'); }
 
     const data = await res.json();
     conversationId = data.conversation_id;
     appendMessage('assistant', data.response, data.sources);
     messages.push({ role: 'assistant', content: data.response, sources: data.sources });
+    
+    // Update quota display
+    if (data.quota) updateQuotaDisplay(data.quota);
+    
+    // Show confidence indicator
+    if (data.confidence === 'none') {
+      // No RAG sources were found
+    }
+    
     loadConversations();
   } catch (e) {
-    appendMessage('assistant', `Erreur : ${e.message}. Veuillez réessayer.`, null);
+    appendMessage('assistant', `⚠️ Erreur : ${e.message}. Veuillez réessayer.`, null);
   } finally {
     isStreaming = false;
     document.getElementById('sendBtn').disabled = false;

@@ -63,6 +63,29 @@
 
       <!-- Input -->
       <div class="input-area">
+        <div class="input-filters" style="display:flex;gap:8px;margin-bottom:8px;padding:0 12px">
+          <select id="filterJurisdiction" style="background:var(--surface);border:1px solid var(--border);color:var(--text-secondary);padding:4px 10px;border-radius:6px;font-size:0.78rem;font-family:var(--font-body);cursor:pointer" onchange="saveFilters()">
+            <option value="">Toutes juridictions</option>
+            <option value="CH">🇨🇭 Droit fédéral</option>
+            <option value="GE">Genève</option>
+            <option value="VD">Vaud</option>
+            <option value="NE">Neuchâtel</option>
+            <option value="FR">Fribourg</option>
+            <option value="VS">Valais</option>
+            <option value="JU">Jura</option>
+          </select>
+          <select id="filterDomain" style="background:var(--surface);border:1px solid var(--border);color:var(--text-secondary);padding:4px 10px;border-radius:6px;font-size:0.78rem;font-family:var(--font-body);cursor:pointer" onchange="saveFilters()">
+            <option value="">Tous domaines</option>
+            <option value="droit_civil">⚖ Civil</option>
+            <option value="droit_penal">🔒 Pénal</option>
+            <option value="droit_public">🏛 Public / Administratif</option>
+            <option value="droit_social">🤝 Social</option>
+            <option value="bail">🏠 Bail</option>
+            <option value="travail">💼 Travail</option>
+            <option value="famille">👨‍👩‍👧 Famille</option>
+            <option value="fiscal">💰 Fiscal</option>
+          </select>
+        </div>
         <div class="input-box">
           <textarea id="messageInput" rows="1" placeholder="Posez votre question juridique…" onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
           <button class="send-btn" id="sendBtn" onclick="sendMessage()">→</button>

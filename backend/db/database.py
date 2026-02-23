@@ -34,8 +34,11 @@ async def init_db():
         async with pool.acquire() as conn:
             # Extensions
             await conn.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto;")
-            await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-            log.info("✅ pgcrypto + pgvector extensions activated")
+            try:
+                await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+                log.info("✅ pgcrypto + pgvector extensions activated")
+            except Exception as ve:
+                log.warning(f"⚠️ pgvector not available: {ve} — running without vector search")
 
             # ── Users ──
             await conn.execute("""
@@ -100,7 +103,7 @@ async def init_db():
                 CREATE INDEX IF NOT EXISTS idx_doc_type ON legal_documents(doc_type);
             """)
 
-            # ── Legal Chunks (with pgvector) ──
+            # ── Legal Chunks (with pgvector if available) ──
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS legal_chunks (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -109,34 +112,51 @@ async def init_db():
                     chunk_text TEXT NOT NULL,
                     source_ref TEXT,
                     source_url TEXT,
-                    embedding vector(1024),
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
                 CREATE INDEX IF NOT EXISTS idx_chunk_doc ON legal_chunks(document_id);
             """)
+            
+            # Add vector column if pgvector available
+            try:
+                has_vector = await conn.fetchval("""
+                    SELECT EXISTS(SELECT 1 FROM information_schema.columns
+                    WHERE table_name='legal_chunks' AND column_name='embedding')
+                """)
+                if not has_vector:
+                    await conn.execute("ALTER TABLE legal_chunks ADD COLUMN embedding vector(1024);")
+                    log.info("✅ Added vector(1024) column to legal_chunks")
+            except Exception:
+                log.warning("⚠️ Could not add vector column — pgvector may not be installed")
 
-            # ── Migrate: BYTEA → vector(1024) if needed ──
-            col_type = await conn.fetchval("""
-                SELECT data_type FROM information_schema.columns
-                WHERE table_name = 'legal_chunks' AND column_name = 'embedding'
-            """)
-            if col_type == "bytea":
-                log.info("🔄 Migrating legal_chunks.embedding from BYTEA to vector(1024)...")
-                await conn.execute("ALTER TABLE legal_chunks DROP COLUMN embedding;")
-                await conn.execute("ALTER TABLE legal_chunks ADD COLUMN embedding vector(1024);")
-                log.info("✅ Migration complete")
+            # ── Migrate BYTEA → vector(1024) + HNSW index (if pgvector available) ──
+            try:
+                col_type = await conn.fetchval("""
+                    SELECT data_type FROM information_schema.columns
+                    WHERE table_name = 'legal_chunks' AND column_name = 'embedding'
+                """)
+                if col_type == "bytea":
+                    log.info("🔄 Migrating legal_chunks.embedding from BYTEA to vector(1024)...")
+                    await conn.execute("ALTER TABLE legal_chunks DROP COLUMN embedding;")
+                    await conn.execute("ALTER TABLE legal_chunks ADD COLUMN embedding vector(1024);")
+                    log.info("✅ Migration complete")
 
-            # ── HNSW index for fast similarity search ──
-            await conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_chunk_embedding_hnsw
-                ON legal_chunks USING hnsw (embedding vector_cosine_ops)
-                WITH (m = 16, ef_construction = 200);
-            """)
+                # ── HNSW index for fast similarity search ──
+                await conn.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_chunk_embedding_hnsw
+                    ON legal_chunks USING hnsw (embedding vector_cosine_ops)
+                    WITH (m = 16, ef_construction = 200);
+                """)
+            except Exception as e:
+                log.warning(f"⚠️ Vector index setup skipped: {e}")
 
             # Stats
             doc_count = await conn.fetchval("SELECT COUNT(*) FROM legal_documents")
             chunk_count = await conn.fetchval("SELECT COUNT(*) FROM legal_chunks")
-            embedded_count = await conn.fetchval("SELECT COUNT(*) FROM legal_chunks WHERE embedding IS NOT NULL")
+            try:
+                embedded_count = await conn.fetchval("SELECT COUNT(*) FROM legal_chunks WHERE embedding IS NOT NULL")
+            except Exception:
+                embedded_count = 0
             log.info(f"📊 DB stats: {doc_count} documents, {chunk_count} chunks, {embedded_count} embedded")
 
         log.info("✅ Database initialized with pgvector")

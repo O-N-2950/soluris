@@ -1,58 +1,266 @@
-"""RAG Pipeline — Retrieval Augmented Generation for Swiss law"""
+"""RAG Pipeline — Retrieval Augmented Generation for Swiss law
+
+Architecture:
+  1. User question → Cohere multilingual embedding
+  2. pgvector cosine similarity search in legal_chunks
+  3. Top-K chunks injected into Claude system prompt
+  4. Claude generates grounded answer with verifiable citations
+  5. Parse sources and confidence score
+"""
 import os
 import json
+import logging
 import httpx
-from typing import List, Dict
+from typing import List, Dict, Optional, Tuple
 
+from backend.db import database
+
+log = logging.getLogger("soluris.rag")
+
+# ── Configuration ──
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
+COHERE_API_KEY = os.getenv("COHERE_API_KEY", "")
+EMBEDDING_MODEL = "embed-multilingual-v3.0"
+EMBEDDING_DIM = 1024  # Cohere multilingual-v3 dimension
+TOP_K_CHUNKS = 10  # Number of chunks to retrieve
+CONFIDENCE_THRESHOLD = 0.35  # Minimum cosine similarity to consider relevant
 
-SYSTEM_PROMPT = """Tu es Soluris, un assistant juridique IA spécialisé en droit suisse.
+# ── System prompts ──
+SYSTEM_PROMPT_WITH_RAG = """Tu es Soluris, un assistant juridique IA spécialisé en droit suisse.
 
-RÈGLES STRICTES :
-1. Tu réponds UNIQUEMENT sur la base du droit suisse (fédéral et cantonal)
-2. Tu cites TOUJOURS tes sources avec les références exactes (articles de loi, numéros ATF, etc.)
-3. Tu indiques clairement quand tu n'es pas sûr d'une information
-4. Tu ne donnes JAMAIS de conseil juridique personnel — tu fournis de l'information juridique
-5. Tu réponds en français, sauf si l'utilisateur écrit dans une autre langue
-6. Tu structures tes réponses de façon claire avec les références entre parenthèses
-7. Tu mentionnes la jurisprudence pertinente quand elle existe
+CONTEXTE JURIDIQUE FOURNI :
+{context}
+
+R�GLES STRICTES :
+1. Base tes réponses PRIORITAIREMENT sur le contexte juridique fourni ci-dessus
+2. Cite TOUJOURS les articles de loi et arrêts exacts entre parenthèses (art. X CO, ATF X XX XX)
+3. Pour chaque affirmation juridique, indique la source précise du contexte
+4. Si le contexte ne couvre pas la question, tu peux compléter avec tes connaissances mais SIGNALE-LE clairement : "⚠️ Cette information provient de mes connaissances générales et n'est pas vérifiée dans les sources disponibles."
+5. Tu ne donnes JAMAIS de conseil juridique personnel — tu fournis de l'information juridique
+6. Tu réponds en français, sauf si l'utilisateur écrit dans une autre langue
+7. Structure tes réponses clairement avec les références entre parenthèses
 
 FORMAT DES SOURCES :
-Pour chaque source citée, ajoute à la fin de ta réponse un bloc JSON comme suit :
+À la fin de ta réponse, ajoute un bloc JSON avec les sources EFFECTIVEMENT utilisées :
 [SOURCES]
-[{"reference": "Art. 41 CO", "title": "Responsabilité délictuelle", "url": "https://www.fedlex.admin.ch/eli/cc/27/317_321_377/fr#art_41"}]
-[/SOURCES]
+[{{"reference": "Art. 41 CO", "title": "Responsabilité délictuelle", "url": "https://www.fedlex.admin.ch/..."}}]
+[/SOURCES]"""
 
-Si tu n'as pas de sources pertinentes provenant du contexte fourni, base-toi sur tes connaissances du droit suisse
-et cite les articles/ATF de mémoire avec les références appropriées."""
+SYSTEM_PROMPT_NO_RAG = """Tu es Soluris, un assistant juridique IA spécialisé en droit suisse.
+
+⚠️ ATTENTION : La base de données juridique n'est pas disponible pour cette requête.
+Les réponses sont basées sur tes connaissances générales du droit suisse.
+Toutes les informations fournies doivent être vérifiées par l'utilisateur.
+
+R�GLES STRICTES :
+1. Tu réponds UNIQUEMENT sur la base du droit suisse (fédéral et cantonal)
+2. Tu cites les références que tu connais de mémoire (articles de loi, ATF)
+3. Tu indiques CLAIREMENT que ces sources n'ont pas été vérifiées dans la base
+4. Tu ne donnes JAMAIS de conseil juridique personnel
+5. Tu réponds en français, sauf si l'utilisateur écrit dans une autre langue
+
+FORMAT DES SOURCES :
+[SOURCES]
+[{{"reference": "...", "title": "...", "url": "...", "verified": false}}]
+[/SOURCES]"""
+
+
+async def embed_text(text: str) -> Optional[List[float]]:
+    """Generate embedding for a text using Cohere multilingual-v3."""
+    if not COHERE_API_KEY:
+        log.warning("COHERE_API_KEY not set — skipping embedding")
+        return None
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                "https://api.cohere.ai/v1/embed",
+                headers={
+                    "Authorization": f"Bearer {COHERE_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": EMBEDDING_MODEL,
+                    "texts": [text],
+                    "input_type": "search_query",
+                    "truncate": "END",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["embeddings"][0]
+    except Exception as e:
+        log.error(f"Embedding failed: {e}")
+        return None
+
+
+async def embed_texts_batch(texts: List[str], input_type: str = "search_document") -> List[List[float]]:
+    """Batch embed multiple texts (for document ingestion)."""
+    if not COHERE_API_KEY:
+        return []
+
+    all_embeddings = []
+    batch_size = 96  # Cohere max batch size
+
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i + batch_size]
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                resp = await client.post(
+                    "https://api.cohere.ai/v1/embed",
+                    headers={
+                        "Authorization": f"Bearer {COHERE_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": EMBEDDING_MODEL,
+                        "texts": batch,
+                        "input_type": input_type,
+                        "truncate": "END",
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                all_embeddings.extend(data["embeddings"])
+        except Exception as e:
+            log.error(f"Batch embedding failed at batch {i // batch_size}: {e}")
+            all_embeddings.extend([None] * len(batch))
+
+    return all_embeddings
+
+
+async def search_legal_chunks(question_embedding: List[float], top_k: int = TOP_K_CHUNKS) -> List[Dict]:
+    """Search legal_chunks by cosine similarity using pgvector."""
+    if not database.pool:
+        return []
+
+    try:
+        async with database.pool.acquire() as conn:
+            # Check if pgvector extension is active
+            has_vector = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'vector')"
+            )
+            if not has_vector:
+                log.warning("pgvector extension not installed — RAG search unavailable")
+                return []
+
+            # Vector similarity search
+            embedding_str = "[" + ",".join(str(x) for x in question_embedding) + "]"
+            rows = await conn.fetch(
+                """
+                SELECT
+                    lc.chunk_text,
+                    lc.source_ref,
+                    lc.source_url,
+                    ld.title AS doc_title,
+                    ld.reference AS doc_reference,
+                    ld.doc_type,
+                    ld.url AS doc_url,
+                    1 - (lc.embedding <=> $1::vector) AS similarity
+                FROM legal_chunks lc
+                JOIN legal_documents ld ON lc.document_id = ld.id
+                WHERE lc.embedding IS NOT NULL
+                ORDER BY lc.embedding <=> $1::vector
+                LIMIT $2
+                """,
+                embedding_str, top_k,
+            )
+
+            results = []
+            for row in rows:
+                sim = float(row["similarity"])
+                if sim >= CONFIDENCE_THRESHOLD:
+                    results.append({
+                        "chunk_text": row["chunk_text"],
+                        "source_ref": row["source_ref"],
+                        "source_url": row["source_url"],
+                        "doc_title": row["doc_title"],
+                        "doc_reference": row["doc_reference"],
+                        "doc_type": row["doc_type"],
+                        "doc_url": row["doc_url"],
+                        "similarity": sim,
+                    })
+
+            return results
+
+    except Exception as e:
+        log.error(f"Vector search failed: {e}")
+        return []
+
+
+def format_chunks_as_context(chunks: List[Dict]) -> str:
+    """Format retrieved chunks into a context string for the system prompt."""
+    if not chunks:
+        return ""
+
+    context_parts = []
+    for i, chunk in enumerate(chunks, 1):
+        ref = chunk.get("source_ref") or chunk.get("doc_reference") or "Réf. inconnue"
+        title = chunk.get("doc_title", "")
+        url = chunk.get("source_url") or chunk.get("doc_url", "")
+        sim = chunk.get("similarity", 0)
+
+        context_parts.append(
+            f"--- Source {i} [{ref}] (pertinence: {sim:.0%}) ---\n"
+            f"Titre: {title}\n"
+            f"Référence: {ref}\n"
+            f"URL: {url}\n"
+            f"Contenu:\n{chunk['chunk_text']}\n"
+        )
+
+    return "\n".join(context_parts)
 
 
 async def generate_answer(question: str, history: List[Dict]) -> Dict:
-    """Generate a legal answer using Claude API with optional RAG context."""
+    """Generate a legal answer using Claude API with RAG context.
 
-    # Build messages from history
+    Pipeline:
+    1. Embed the question via Cohere multilingual
+    2. Search legal_chunks by vector similarity (pgvector)
+    3. Inject relevant chunks into system prompt
+    4. Call Claude with grounded context
+    5. Parse response and extract sources
+    """
+
+    # ── Step 1 & 2: RAG retrieval ──
+    chunks = []
+    rag_available = False
+
+    question_embedding = await embed_text(question)
+    if question_embedding:
+        chunks = await search_legal_chunks(question_embedding)
+        if chunks:
+            rag_available = True
+            log.info(f"RAG: {len(chunks)} chunks retrieved (best similarity: {chunks[0]['similarity']:.2%})")
+        else:
+            log.info("RAG: no relevant chunks found above threshold")
+    else:
+        log.info("RAG: embedding unavailable, falling back to Claude knowledge")
+
+    # ── Step 3: Build system prompt ──
+    if rag_available:
+        context = format_chunks_as_context(chunks)
+        system_prompt = SYSTEM_PROMPT_WITH_RAG.format(context=context)
+    else:
+        system_prompt = SYSTEM_PROMPT_NO_RAG
+
+    # ── Step 4: Build messages ──
     messages = []
-    for msg in history[-8:]:  # Last 8 messages for context
+    for msg in history[-8:]:
         if msg.get("role") in ("user", "assistant"):
             messages.append({"role": msg["role"], "content": msg["content"]})
 
-    # Add the new question if not already in history
     if not messages or messages[-1].get("content") != question:
         messages.append({"role": "user", "content": question})
 
-    # TODO: Add RAG retrieval here
-    # 1. Embed the question using Cohere multilingual
-    # 2. Search legal_chunks by vector similarity
-    # 3. Prepend relevant chunks to system prompt
-    # For now, we rely on Claude's knowledge of Swiss law
-
-    # Call Claude API
+    # ── Step 5: Call Claude API ──
     if not ANTHROPIC_API_KEY:
         return {
             "response": "⚠️ Clé API Anthropic non configurée. Ajoutez ANTHROPIC_API_KEY dans les variables d'environnement Railway.",
             "sources": [],
             "tokens": 0,
+            "rag_chunks": 0,
         }
 
     try:
@@ -67,7 +275,7 @@ async def generate_answer(question: str, history: List[Dict]) -> Dict:
                 json={
                     "model": ANTHROPIC_MODEL,
                     "max_tokens": 4096,
-                    "system": SYSTEM_PROMPT,
+                    "system": system_prompt,
                     "messages": messages,
                 },
             )
@@ -93,12 +301,21 @@ async def generate_answer(question: str, history: List[Dict]) -> Dict:
                 except json.JSONDecodeError:
                     pass
 
+        # Add RAG metadata to sources
+        for source in sources:
+            if rag_available:
+                source["verified"] = True
+            else:
+                source.setdefault("verified", False)
+
         tokens = data.get("usage", {}).get("input_tokens", 0) + data.get("usage", {}).get("output_tokens", 0)
 
         return {
             "response": response_text,
             "sources": sources,
             "tokens": tokens,
+            "rag_chunks": len(chunks),
+            "rag_available": rag_available,
         }
 
     except httpx.HTTPStatusError as e:
@@ -106,10 +323,13 @@ async def generate_answer(question: str, history: List[Dict]) -> Dict:
             "response": f"Erreur API Claude ({e.response.status_code}). Veuillez réessayer.",
             "sources": [],
             "tokens": 0,
+            "rag_chunks": 0,
         }
     except Exception as e:
+        log.error(f"Claude API error: {e}")
         return {
             "response": f"Erreur inattendue : {str(e)}",
             "sources": [],
             "tokens": 0,
+            "rag_chunks": 0,
         }

@@ -1,0 +1,3 @@
+# Raw scraped data (too large for git — regenerate with: python -m backend.scrapers.fedlex --mode priority)
+fedlex/*.json
+!fedlex/.gitkeep

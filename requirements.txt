@@ -7,3 +7,7 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 pydantic==2.9.2
 python-multipart==0.0.9
+# Scraping — Fedlex SPARQL + HTML parsing
+SPARQLWrapper==2.0.0
+beautifulsoup4==4.12.3
+requests==2.32.3

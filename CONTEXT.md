@@ -71,8 +71,10 @@ soluris/
 │   │   └── health.py        ← /health check
 │   ├── services/rag.py      ← Claude API + (TODO) vector retrieval
 │   └── scrapers/
-│       ├── fedlex.py        ← SPARQL endpoint
+│       ├── fedlex.py        ← SPARQL scraper complet (list/scrape/priority modes)
 │       └── entscheidsuche.py ← Court decisions API
+├── data/
+│   └── fedlex/              ← JSON scrapés (gitignored, regénérer avec --mode priority)
 ├── Dockerfile
 ├── railway.toml
 ├── requirements.txt
@@ -102,7 +104,7 @@ soluris/
 
 ## 📊 Sources de Données Juridiques
 
-1. **Fedlex** (SPARQL) — Législation fédérale (~85k actes)
+1. **Fedlex** (SPARQL + HTML filestore) — Législation fédérale consolidée. Endpoint: `fedlex.data.admin.ch/sparqlendpoint`. Ontologie JOLux. ~12 500 actes dans le RS, ~5 100 en vigueur. HTML structuré avec balises `<article>`. ✅ Scraper opérationnel.
 2. **Tribunal fédéral** (REST API) — Jurisprudence (~450k arrêts)
 3. **Entscheidsuche** (Elasticsearch) — Décisions cantonales (~1.2M décisions)
 4. **Droit cantonal** (Scraping) — GE, VD, NE, FR, VS, JU
@@ -122,6 +124,9 @@ soluris/
 - [x] Modèle IA final : Claude Haiku 4.5 (~30 CHF/mois pour 10k requêtes)
 - [x] Hébergement suisse confirmé : SwissCenter
 - [x] Plan d'implémentation 4 phases créé (voir TODO.md)
+- [x] **Scraper Fedlex opérationnel** (`backend/scrapers/fedlex.py`) — SPARQL + HTML parsing
+- [x] **5 973 articles** extraits des 15 codes prioritaires (CO, CC, CP, CPC, CPP, LP, LTF, LDIP, LAT, LEI, Cst, LFus, LPGA, LAVS, LAMal)
+- [x] Tâche 1.1 du TODO complétée : API SPARQL Fedlex explorée et intégrée
 
 ## 🔲 À Faire
 
@@ -148,6 +153,7 @@ Résumé des phases :
 | 2026-02-23 | Essai 7j (pas 14j) | Aligné sur Silex, suffisant pour évaluer l'outil |
 | 2026-02-23 | Phase 1 = RAG d'abord | Sans données juridiques = wrapper ChatGPT, aucun avocat ne paie |
 | 2026-02-23 | Hébergement SwissCenter | Souveraineté des données suisse, argument commercial vs Silex |
+| 2026-02-23 | Fedlex via SPARQL+HTML | API SPARQL pour métadonnées, filestore HTML pour le texte. ConsolidationAbstract→Consolidation→Expression→Manifestation. 5 973 articles extraits des 15 codes prioritaires |
 
 ## 🔑 Environnement
 
@@ -175,4 +181,4 @@ Résumé des phases :
 | Équipe | 10+ personnes, $2.15M | 1 développeur |
 
 ---
-*Dernière mise à jour : 2026-02-23 — Session : analyse concurrentielle Silex, pricing révisé (89/149/349), TODO.md créé avec roadmap 4 phases, hébergement SwissCenter confirmé*
+*Dernière mise à jour : 2026-02-23 — Session : scraper Fedlex SPARQL opérationnel, 5 973 articles extraits des 15 codes prioritaires (CO, CC, CP, CPC, CPP, LP, LTF, etc.), fix consolidation future dates*

@@ -9,13 +9,13 @@
 *Sans ça, aucun avocat ne paiera. Objectif : transformer le wrapper Claude en vrai outil juridique.*
 
 ### 1.1 Ingestion Fedlex — Législation fédérale
-- [ ] Explorer l'API SPARQL Fedlex (`https://fedlex.data.admin.ch/sparql`)
-- [ ] Écrire le scraper `backend/scrapers/fedlex.py` pour extraire le Recueil Systématique (RS)
-- [ ] Ingérer les codes principaux en priorité : CO, CC, CP, CPC, CPP, LP, LTF, LDIP, LAT, LEtr
-- [ ] Parser le XML/JSON Fedlex → structurer dans `legal_documents` (PostgreSQL)
-- [ ] Chunking intelligent des articles (1 chunk = 1 article ou groupe d'alinéas cohérent)
-- [ ] Stocker les métadonnées : numéro RS, titre, langue, date de publication, URL source
-- [ ] Tester avec requête SPARQL de validation (compter les actes ingérés)
+- [x] Explorer l'API SPARQL Fedlex (`https://fedlex.data.admin.ch/sparql`)
+- [x] Écrire le scraper `backend/scrapers/fedlex.py` pour extraire le Recueil Systématique (RS)
+- [x] Ingérer les codes principaux en priorité : CO, CC, CP, CPC, CPP, LP, LTF, LDIP, LAT, LEtr
+- [x] Parser le HTML Fedlex → structurer dans `legal_documents` (PostgreSQL)
+- [x] Chunking intelligent des articles (1 chunk = 1 article ou groupe d'alinéas cohérent)
+- [x] Stocker les métadonnées : numéro RS, titre, langue, date de publication, URL source
+- [x] Tester avec requête SPARQL de validation (compter les actes ingérés)
 - **Critère de succès** : ≥ 500 lois fédérales principales ingérées et chunked
 
 ### 1.2 Ingestion Jurisprudence TF — Tribunal fédéral
@@ -268,15 +268,18 @@
 
 ## 🏁 Prochaine Action Immédiate
 
-**→ Tâche 1.1 : Explorer l'API SPARQL Fedlex**
+**→ Tâche 1.1 : ✅ COMPLÉTÉE** — 5 973 articles extraits de 15 codes fédéraux
 
-C'est la fondation de tout le reste. Sans données juridiques, pas de RAG, pas de citations, pas de valeur ajoutée.
+**→ Tâche 1.2 : Explorer l'API bger.ch / entscheidsuche.ch pour les arrêts TF**
+
+C'est la deuxième source critique. Les avocats ont besoin de jurisprudence pour étayer leurs arguments.
 
 ```
-Point d'entrée : https://fedlex.data.admin.ch/sparql
-Documentation : https://fedlex.data.admin.ch/fr/home/api
+Points d'entrée :
+- bger.ch (site officiel du Tribunal fédéral)
+- entscheidsuche.ch (agrégateur de jurisprudence)
 ```
 
 ---
 
-*Dernière mise à jour : 2026-02-23 — Session : création TODO détaillé, analyse concurrentielle Silex, plan 4 phases*
+*Dernière mise à jour : 2026-02-23 — Session : Tâche 1.1 complétée (scraper Fedlex), 5 973 articles de 15 codes prioritaires extraits*

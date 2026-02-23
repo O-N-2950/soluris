@@ -8,7 +8,8 @@
 
 - **Domaine choisi** : `soluris.ch` (confirmé disponible via RDAP — pas encore enregistré)
 - **Positionnement** : Premium, institutionnel, "la référence de confiance"
-- **Pricing** : Solo CHF 149/mo, Cabinet CHF 449/mo, Enterprise sur mesure. Essai 14j gratuit sans CB.
+- **Pricing** : Essentiel CHF 89/mo, Pro CHF 149/mo, Cabinet CHF 349/mo, Enterprise sur mesure. Essai 7j gratuit sans CB.
+- **Concurrent principal** : Silex (Ex Nunc Intelligence) — CHF 120/mo, EPFL spin-off, $2.15M levés, ~100s utilisateurs
 
 ## 🏗 Stack Technique
 
@@ -18,9 +19,9 @@
 | Backend | FastAPI (Python 3.11) |
 | Base de données | PostgreSQL + pgvector |
 | Auth | JWT (python-jose, bcrypt, 72h expiration) |
-| IA | Claude API (claude-sonnet-4-20250514) |
-| Embeddings | Cohere multilingual (prévu, pas encore implémenté) |
-| Déploiement | Railway (Dockerfile) |
+| IA | Claude Haiku 4.5 (claude-haiku-4-5-20251001) — ~30 CHF/mo pour 10k req |
+| Embeddings | Cohere multilingual-v3 (prévu, pas encore implémenté) |
+| Hébergement | SwissCenter (Suisse) |
 | Repo | https://github.com/O-N-2950/soluris |
 
 ## 🎨 Design System (v2 — Premium Éditorial)
@@ -116,17 +117,21 @@ soluris/
 - [x] Logo : SVG vectoriel recréé + PNG fond transparent (3 tailles)
 - [x] Intégration logo dans le site
 - [x] Push GitHub complet
+- [x] Analyse concurrentielle Silex (features, pricing, traction, tech stack)
+- [x] Stratégie pricing révisée (Essentiel 89, Pro 149, Cabinet 349 — undercut Silex de 26%)
+- [x] Modèle IA final : Claude Haiku 4.5 (~30 CHF/mois pour 10k requêtes)
+- [x] Hébergement suisse confirmé : SwissCenter
+- [x] Plan d'implémentation 4 phases créé (voir TODO.md)
 
 ## 🔲 À Faire
 
-- [ ] **Déployer sur Railway** (besoin du Railway API token ou déploiement manuel)
-- [ ] **Enregistrer soluris.ch** (confirmé disponible)
-- [ ] **Configurer variables d'environnement** : ANTHROPIC_API_KEY, JWT_SECRET, DATABASE_URL
-- [ ] **Implémenter RAG complet** : embeddings Cohere, recherche vectorielle dans legal_chunks
-- [ ] **Pipeline d'ingestion** : scraper Fedlex + Entscheidsuche → legal_documents → chunking → embedding
-- [ ] **Adapter app.html et login.html** au nouveau design system premium
-- [ ] **Tests** : API endpoints, auth flow, chat flow
-- [ ] **Mobile responsive** : tester et ajuster sur iPhone/Android
+→ **Voir `TODO.md` pour le plan détaillé avec 4 phases et ~60 tâches.**
+
+Résumé des phases :
+1. **Phase 1 — Parité minimale** (Sem. 1-4) : Ingestion Fedlex + TF, RAG pgvector, citations, anti-hallucination, essai 7j, quota enforcement
+2. **Phase 2 — Différenciation** (Mois 2-3) : Filtres canton/domaine, droit cantonal romand, export Word/PDF, dossiers, Stripe
+3. **Phase 3 — Avantage compétitif** (Mois 3-6) : Upload de documents, templates juridiques, mode adversarial, veille juridique, multi-user
+4. **Phase 4 — Écosystème** (Mois 6+) : API publique, data silos, soft law, analytics
 
 ## 📝 Décisions Techniques
 
@@ -138,15 +143,36 @@ soluris/
 | 2026-02-21 | JWT over sessions | Stateless, scalable |
 | 2026-02-21 | Design v1→v2 | Logo premium ≠ site "startup tech", alignement nécessaire |
 | 2026-02-21 | Cormorant Garamond (serif) | Autorité institutionnelle pour la cible avocats |
+| 2026-02-23 | Claude Haiku 4.5 over Sonnet | 90% qualité, 1/3 du coût, rentable dès 1 client Essentiel |
+| 2026-02-23 | Pricing agressif (89/149/349) | Undercut Silex (120 CHF), compétitif pour les petites études |
+| 2026-02-23 | Essai 7j (pas 14j) | Aligné sur Silex, suffisant pour évaluer l'outil |
+| 2026-02-23 | Phase 1 = RAG d'abord | Sans données juridiques = wrapper ChatGPT, aucun avocat ne paie |
+| 2026-02-23 | Hébergement SwissCenter | Souveraineté des données suisse, argument commercial vs Silex |
 
 ## 🔑 Environnement
 
 | Variable | Source | Status |
 |----------|--------|--------|
-| DATABASE_URL | Railway (auto) | ⏳ Pas encore déployé |
+| DATABASE_URL | SwissCenter (PostgreSQL) | ⏳ À configurer |
 | ANTHROPIC_API_KEY | User | ⏳ À configurer |
 | JWT_SECRET | Généré (openssl rand -hex 32) | ⏳ À configurer |
-| ANTHROPIC_MODEL | Default: claude-sonnet-4-20250514 | ✅ Codé en dur |
+| ANTHROPIC_MODEL | claude-haiku-4-5-20251001 | ✅ Décidé |
+| COHERE_API_KEY | Pour embeddings | ⏳ À obtenir |
+
+## 🏆 Analyse Concurrentielle (Résumé)
+
+| | Silex | Soluris (cible MVP) |
+|---|---|---|
+| Prix | CHF 120/mo | CHF 89/mo (Essentiel) |
+| Base juridique | Fédéral + 26 cantons + soft law | Fédéral + 6 cantons romands |
+| Jurisprudence | TF + cantonale | TF (+ cantonale Phase 2) |
+| Citations sources | ✅ | ✅ (Phase 1) |
+| Hébergement CH | ✅ | ✅ SwissCenter |
+| Export Word/PDF | ✅ | Phase 2 |
+| Intégration Agora | ✅ | ❌ |
+| Upload documents | En dev | Phase 3 |
+| Mode adversarial | ❌ | Phase 3 (différenciateur) |
+| Équipe | 10+ personnes, $2.15M | 1 développeur |
 
 ---
-*Dernière mise à jour : 2026-02-21 — Session : redesign premium éditorial, intégration logo, CONTEXT.md auto-update activé*
+*Dernière mise à jour : 2026-02-23 — Session : analyse concurrentielle Silex, pricing révisé (89/149/349), TODO.md créé avec roadmap 4 phases, hébergement SwissCenter confirmé*

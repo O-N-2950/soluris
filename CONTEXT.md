@@ -2,7 +2,7 @@
 
 > Fichier mis à jour automatiquement à chaque session. Sert de mémoire persistante entre les conversations.
 
-## Dernière mise à jour : 2026-02-23 (Audit stratégique Groupe NEO + Analyse concurrentielle)
+## Dernière mise à jour : 2026-02-23 (RAG implémenté + Security fixes + Analyse concurrentielle)
 
 ## 🎯 Vision
 
@@ -92,6 +92,63 @@ Redesign complet aligné sur le logo (hexagone réseau neuronal + point doré ce
 
 **Esthétique :** Éditoriale, lignes fines dorées, espacement généreux, pas de glow excessif. "Banque privée genevoise" plutôt que "startup tech".
 
+
+
+## 🚀 Implémentation RAG (23 fév 2026)
+
+### Fichiers créés/modifiés
+1. **backend/services/rag.py** — Pipeline RAG complet :
+   - `embed_text()` : Embedding question via Cohere multilingual-v3
+   - `embed_texts_batch()` : Batch embedding pour ingestion
+   - `search_legal_chunks()` : Recherche vectorielle pgvector (cosine similarity, seuil 0.35)
+   - `format_chunks_as_context()` : Formatage des chunks pour injection dans prompt Claude
+   - `generate_answer()` : Pipeline complet (embed → search → inject → Claude → parse sources)
+   - 2 modes : SYSTEM_PROMPT_WITH_RAG (contexte juridique injecté) et SYSTEM_PROMPT_NO_RAG (fallback)
+
+2. **backend/db/database.py** — pgvector activé :
+   - `CREATE EXTENSION vector`
+   - `legal_chunks.embedding vector(1024)` (migration auto BYTEA → vector)
+   - Index HNSW pour recherche rapide
+   - `trial_expires_at` ajouté dans users
+   - `rag_chunks` ajouté dans messages
+   - Stats au démarrage
+
+3. **backend/scripts/embed_chunks.py** — Batch embedding :
+   - `python -m backend.scripts.embed_chunks` (nouveaux chunks)
+   - `python -m backend.scripts.embed_chunks --all` (re-embed tout)
+   - `python -m backend.scripts.embed_chunks --stats` (stats)
+   - Batch 96, rate limiting, retry on error
+
+4. **backend/scripts/ingest_fedlex.py** — Ingestion Fedlex → DB :
+   - `python -m backend.scripts.ingest_fedlex` (tous les JSON)
+   - `python -m backend.scripts.ingest_fedlex --scrape` (scrape + ingest)
+   - Gère documents + chunks, upsert on conflict
+
+5. **requirements.txt** — Ajout `cohere==5.13.4` + `pgvector==0.3.6`
+
+### Pipeline d'activation complet
+```bash
+# 1. Scraper les 15 codes prioritaires
+python -m backend.scrapers.fedlex --mode priority
+
+# 2. Ingérer dans PostgreSQL
+python -m backend.scripts.ingest_fedlex
+
+# 3. Générer les embeddings Cohere
+COHERE_API_KEY=xxx python -m backend.scripts.embed_chunks
+
+# 4. Vérifier
+python -m backend.scripts.embed_chunks --stats
+```
+
+### Variables d'environnement requises
+- `COHERE_API_KEY` : Clé API Cohere (obtenir sur dashboard.cohere.com)
+- `ANTHROPIC_API_KEY` : Déjà configuré
+- `DATABASE_URL` : Déjà configuré (Railway PostgreSQL)
+
+### Sécurité corrigée
+- ✅ CORS wildcard Railway retiré (main.py) — utilise RAILWAY_PUBLIC_DOMAIN env var
+
 ## 📁 Structure du Projet
 
 ```
@@ -107,14 +164,17 @@ soluris/
 │   │   └── landing.js       ← Scroll animations
 │   └── assets/              ← Logos SVG/PNG
 ├── backend/
-│   ├── main.py              ← FastAPI entry, CORS, static serving
-│   ├── db/database.py       ← asyncpg pool, schema init
+│   ├── main.py              ← FastAPI entry, CORS (restricted), static serving
+│   ├── db/database.py       ← asyncpg pool + pgvector + HNSW index
 │   ├── routers/
 │   │   ├── auth.py          ← JWT login/signup/me
 │   │   ├── chat.py          ← RAG endpoint /api/chat
 │   │   ├── conversations.py ← History /api/conversations
 │   │   └── health.py        ← /health check
-│   ├── services/rag.py      ← Claude API + (TODO) vector retrieval
+│   ├── services/rag.py      ← Pipeline RAG complet (Cohere + pgvector + Claude)
+│   ├── scripts/
+│   │   ├── embed_chunks.py  ← Batch embedding Cohere multilingual-v3
+│   │   └── ingest_fedlex.py ← Ingestion JSON Fedlex → PostgreSQL
 │   └── scrapers/
 │       ├── fedlex.py        ← SPARQL scraper complet (list/scrape/priority modes)
 │       └── entscheidsuche.py ← Court decisions API
@@ -153,8 +213,8 @@ Avec RAG + 500 lois + 5000 arrêts ATF = vrai outil juridique. Valeur = CHF 89-3
 ## 🗺 Roadmap Prioritaire
 
 ### Phase 1 — Parité minimale (semaines 1-4) ← PRIORITÉ ABSOLUE
-- [ ] Activer pgvector dans PostgreSQL Railway
-- [ ] Migrer legal_chunks.embedding de BYTEA vers VECTOR(1024)
+- [x] Activer pgvector dans PostgreSQL Railway ✅ (database.py mis à jour)
+- [x] Migrer legal_chunks.embedding de BYTEA vers VECTOR(1024) ✅ (migration auto dans database.py)
 - [ ] Exécuter fedlex.py --mode priority (ingérer les 15 codes principaux)
 - [ ] Ajouter cohere aux requirements, implémenter batch embedding
 - [ ] Implémenter recherche vectorielle dans rag.py

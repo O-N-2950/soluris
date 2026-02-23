@@ -25,6 +25,8 @@ EMBEDDING_MODEL = "embed-multilingual-v3.0"
 EMBEDDING_DIM = 1024  # Cohere multilingual-v3 dimension
 TOP_K_CHUNKS = 10  # Number of chunks to retrieve
 CONFIDENCE_THRESHOLD = 0.35  # Minimum cosine similarity to consider relevant
+HIGH_CONFIDENCE = 0.55       # High confidence — very relevant match
+LOW_CONFIDENCE_MSG = "⚠️ Je n'ai pas trouvé de source juridique suffisamment pertinente pour cette question dans ma base de données. Voici une réponse basée sur mes connaissances générales, à vérifier impérativement."
 
 # ── System prompts ──
 SYSTEM_PROMPT_WITH_RAG = """Tu es Soluris, un assistant juridique IA spécialisé en droit suisse.
@@ -310,16 +312,31 @@ async def generate_answer(
         )
         if chunks:
             rag_available = True
-            log.info(f"RAG: {len(chunks)} chunks retrieved (best similarity: {chunks[0]['similarity']:.2%})")
+            best_sim = chunks[0]['similarity']
+            avg_sim = sum(c['similarity'] for c in chunks) / len(chunks)
+            log.info(f"RAG: {len(chunks)} chunks (best: {best_sim:.0%}, avg: {avg_sim:.0%})")
         else:
             log.info("RAG: no relevant chunks found above threshold")
     else:
         log.info("RAG: embedding unavailable, falling back to Claude knowledge")
 
+    # ── Confidence assessment ──
+    confidence = "none"
+    if rag_available:
+        best_sim = chunks[0]["similarity"]
+        if best_sim >= HIGH_CONFIDENCE:
+            confidence = "high"
+        elif best_sim >= CONFIDENCE_THRESHOLD:
+            confidence = "moderate"
+        else:
+            confidence = "low"
+
     # ── Step 3: Build system prompt ──
     if rag_available:
         context = format_chunks_as_context(chunks)
         system_prompt = SYSTEM_PROMPT_WITH_RAG.format(context=context)
+        if confidence == "moderate":
+            system_prompt += "\n\n⚠️ ATTENTION : La pertinence des sources est modérée. Sois prudent et signale les limites de tes sources."
     else:
         system_prompt = SYSTEM_PROMPT_NO_RAG
 
@@ -394,6 +411,7 @@ async def generate_answer(
             "tokens": tokens,
             "rag_chunks": len(chunks),
             "rag_available": rag_available,
+            "confidence": confidence,
         }
 
     except httpx.HTTPStatusError as e:

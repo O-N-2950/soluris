@@ -18,14 +18,22 @@
 - [x] Tester avec requête SPARQL de validation (compter les actes ingérés)
 - **Critère de succès** : ≥ 500 lois fédérales principales ingérées et chunked
 
-### 1.2 Ingestion Jurisprudence TF — Tribunal fédéral
-- [x] Explorer l'API bger.ch / entscheidsuche.ch pour les arrêts publiés (BGE/ATF)
-- [x] Écrire/compléter `backend/scrapers/entscheidsuche.py`
-- [x] Parser : numéro ATF, date, regeste (résumé), considérants clés, domaine du droit
-- [x] Chunking par considérant (chaque considérant = 1 chunk avec métadonnées)
-- [x] Stocker dans `legal_documents` avec `doc_type = 'jurisprudence'`
-- [ ] Ingérer les arrêts ATF principaux (~5 697 arrêts FR publiés)
-- **Critère de succès** : ≥ 5 000 arrêts ATF ingérés avec regestes
+### 1.2 Ingestion Jurisprudence — Toute la Suisse francophone
+- [x] Explorer l'API Elasticsearch entscheidsuche.ch (`_search.php`)
+- [x] Écrire l'aspirateur massif `backend/scrapers/entscheidsuche.py`
+- [x] Support HTML (BGer, BGE, cantons) + PDF (TAF, TPF) via PyMuPDF
+- [x] Téléchargement parallèle (ThreadPoolExecutor, 20 workers, ~25 dec/s)
+- [x] Pagination search_after pour corpus > 10k décisions
+- [x] Chunking structuré : regeste / considérants / dispositif (max 2500 chars)
+- [x] Détection automatique du domaine juridique (civil, pénal, public, social)
+- [x] Tester avec 2 000 décisions (10 sources, 37 894 chunks, 80s) ✅
+- [ ] **Lancer le scraping complet des 279k décisions (~3h)** ← PROCHAINE ACTION
+- [ ] Stocker dans PostgreSQL `legal_documents` + `legal_chunks`
+- **Données disponibles :**
+  - ATF publiés : 5 697 | BGer : 57 875 | TAF : 25 558 | TPF : 3 766
+  - Genève : 81 499 | Vaud : 81 789 | Fribourg : 11 601
+  - Neuchâtel : 7 441 | Valais : 3 010 | Jura : 1 053
+- **Critère de succès** : ≥ 279 000 décisions ingérées, ~2.6M chunks
 
 ### 1.3 Embeddings & Recherche Vectorielle (RAG)
 - [ ] Choisir le modèle d'embeddings : Cohere multilingual-v3 ou OpenAI text-embedding-3-small
@@ -107,7 +115,9 @@
 - [ ] Persister les filtres dans le localStorage pour ne pas les re-sélectionner
 - **Critère de succès** : Filtrer par canton modifie les résultats de manière cohérente
 
-### 2.2 Droit Cantonal Romand (6 cantons)
+### 2.2 Droit Cantonal Romand — Législation (6 cantons)
+*Note : La jurisprudence cantonale est déjà couverte par le scraper Entscheidsuche (Phase 1.2).*
+*Cette section concerne la **législation cantonale** (lois, règlements).*
 - [ ] Genève : scraper SilGenève (https://silgeneve.ch) → législation cantonale GE
 - [ ] Vaud : scraper RSV (Recueil systématique vaudois)
 - [ ] Neuchâtel : scraper RSN
@@ -245,10 +255,12 @@
 - [x] Historique des conversations
 - [x] Schema DB : users, conversations, messages, legal_documents, legal_chunks
 - [x] Push GitHub complet
-- [x] Hébergement suisse confirmé (SwissCenter) ← Point 14 résolu
+- [x] Hébergement suisse confirmé (SwissCenter)
 - [x] Analyse concurrentielle complète (Silex, LegesGPT, Swisslex, etc.)
 - [x] Stratégie pricing définie (Essentiel 89, Pro 149, Cabinet 349)
 - [x] Modèle IA choisi : Claude Haiku 4.5 (~30 CHF/mois pour 10k requêtes)
+- [x] **Scraper Fedlex opérationnel** — 5 973 articles, 15 codes prioritaires
+- [x] **Scraper Entscheidsuche v2 opérationnel** — aspirateur massif, 10 sources, HTML+PDF, 20 threads, 279k décisions FR accessibles, 2 000 testées avec succès
 
 ---
 
@@ -256,9 +268,10 @@
 
 | Métrique | Cible Phase 1 | Cible Phase 2 | Cible Phase 3 |
 |----------|--------------|--------------|--------------|
-| Lois fédérales ingérées | ≥ 500 | ≥ 500 | ≥ 500 |
-| Arrêts TF ingérés | ≥ 5 000 | ≥ 10 000 | ≥ 15 000 |
-| Cantons couverts | Fédéral seul | + 6 romands | + Zurich, Berne |
+| Lois fédérales ingérées | ≥ 500 (✅ 5 973) | ≥ 5 000 | ≥ 12 500 |
+| Décisions de justice ingérées | ≥ 279 000 | ≥ 300 000 | ≥ 400 000 |
+| Cantons jurisprudence | CH + 6 romands | + ZH, BE, TI | + tous |
+| Chunks dans pgvector | ≥ 2 600 000 | ≥ 3 000 000 | ≥ 4 000 000 |
 | Taux citation dans réponses | ≥ 90% | ≥ 95% | ≥ 95% |
 | Taux hallucination | < 5% | < 2% | < 1% |
 | Temps de réponse | < 5s | < 5s | < 3s |
@@ -270,21 +283,20 @@
 
 **→ Tâche 1.1 : ✅ COMPLÉTÉE** — 5 973 articles extraits de 15 codes fédéraux
 
-**→ Tâche 1.2 : ✅ COMPLÉTÉE** — Scraper Entscheidsuche opérationnel, 5 697 ATF (FR) disponibles, 100 testés (1 409 chunks, 0 échecs)
+**→ Tâche 1.2 : ✅ SCRAPER OPÉRATIONNEL** — 279 289 décisions FR accessibles (fédéral + 6 cantons romands), 2 000 testées (37 894 chunks en 80s)
 
-**→ Tâche 1.3 : Embeddings & Recherche Vectorielle (RAG)**
+**→ MAINTENANT : Lancer le scraping complet + Tâche 1.3 Embeddings**
 
-Les deux scrapers (Fedlex + Entscheidsuche) sont opérationnels. Prochaine étape :
-1. Activer pgvector dans PostgreSQL
-2. Générer les embeddings des chunks (Cohere multilingual-v3 ou OpenAI)
-3. Implémenter la recherche vectorielle dans `backend/services/rag.py`
+```bash
+# 1. Scraping complet (~3h)
+python -m backend.scrapers.entscheidsuche scrape --all
 
-```
-Données disponibles :
-- 5 973 articles de loi (15 codes fédéraux via Fedlex SPARQL)
-- 5 697 ATF FR + 57k BGer FR (via Entscheidsuche Elasticsearch)
+# 2. Données totales après scraping :
+#    - 5 973 articles de loi (Fedlex)
+#    - ~279 000 décisions de justice → ~2.6M chunks
+#    = Base de données juridique la plus complète de Suisse romande
 ```
 
 ---
 
-*Dernière mise à jour : 2026-02-23 — Session : Tâches 1.1 + 1.2 complétées, scrapers Fedlex + Entscheidsuche opérationnels*
+*Dernière mise à jour : 2026-02-23 — Scraper Entscheidsuche v2 massif : 279k décisions FR (fédéral + cantonal romand), HTML+PDF, 20 threads, testé 2000 dec → 37 894 chunks en 80s*

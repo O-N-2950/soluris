@@ -2,6 +2,6 @@
 # Regenerate: python -m backend.scrapers.fedlex --mode priority
 fedlex/*.json
 !fedlex/.gitkeep
-# Regenerate: python -m backend.scrapers.entscheidsuche --mode atf
+# Regenerate: python -m backend.scrapers.entscheidsuche scrape --all
 jurisprudence/*.json
 !jurisprudence/.gitkeep

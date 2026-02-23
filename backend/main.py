@@ -18,16 +18,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Soluris API", version="1.0.0", lifespan=lifespan)
 
-# CORS
+# CORS — Restricted origins (audit sécurité 23 fév 2026: wildcard Railway retiré)
+_cors_origins = [
+    "https://soluris.ch",
+    "https://www.soluris.ch",
+]
+if os.environ.get("RAILWAY_PUBLIC_DOMAIN"):
+    _cors_origins.append(f"https://{os.environ['RAILWAY_PUBLIC_DOMAIN']}")
+if os.environ.get("NODE_ENV") != "production":
+    _cors_origins.extend(["http://localhost:8000", "http://localhost:3000"])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8000",
-        "http://localhost:3000",
-        "https://soluris.ch",
-        "https://www.soluris.ch",
-        "https://*.up.railway.app",
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

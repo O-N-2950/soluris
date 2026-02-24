@@ -11,7 +11,9 @@ from backend.db import database
 router = APIRouter()
 pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-SECRET = os.getenv("JWT_SECRET", "soluris-dev-secret-change-me")
+SECRET = os.getenv("JWT_SECRET")
+if not SECRET:
+    raise ValueError("❌ FATAL: JWT_SECRET environment variable is required. Never use a hardcoded secret.")
 ALGORITHM = "HS256"
 TOKEN_HOURS = 72
 TRIAL_DAYS = 7

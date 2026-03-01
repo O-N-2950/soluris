@@ -135,134 +135,53 @@ def build_fiscal_context(chunks: list[dict], canton: Optional[str], annee: Optio
 
 @router.post("/fiscal-query", response_model=FiscalQueryResponse)
 async def fiscal_query(req: FiscalQueryRequest):
-    """
-    Point d'entrée RAG fiscal pour tAIx.
-    Authentification par clé interne (pas JWT).
-    """
+    """Point d'entrée RAG fiscal pour tAIx — authentification clé interne."""
     verify_internal_key(req.internal_key)
 
-    # Import ici pour éviter les imports circulaires
-    from backend.db.database import get_pool
-    from backend.services.rag import generate_embedding, retrieve_chunks, call_claude
+    from backend.services.rag import generate_answer
 
-    pool = await get_pool()
-
-    # 1. Enrichir la question avec contexte canton/année
-    enriched_question = req.question
+    enriched = req.question
     if req.canton:
-        enriched_question += f" (Canton: {req.canton})"
+        enriched += f" (Canton: {req.canton})"
     if req.annee:
-        enriched_question += f" (Année fiscale: {req.annee})"
-
-    # 2. Embedding de la question
-    try:
-        query_embedding = await generate_embedding(enriched_question)
-    except Exception as e:
-        log.error(f"Embedding failed: {e}")
-        raise HTTPException(status_code=502, detail="Embedding service unavailable")
-
-    # 3. Recherche vectorielle — filtrer sur droit_fiscal + canton si fourni
-    filters = {"legal_domain": "droit_fiscal"}
-    if req.canton:
-        filters["jurisdiction"] = req.canton.upper()
+        enriched += f" (Année fiscale: {req.annee})"
 
     try:
-        chunks = await retrieve_chunks(
-            pool=pool,
-            query_embedding=query_embedding,
-            limit=req.max_sources,
-            filters=filters,
+        result = await generate_answer(
+            question=enriched,
+            history=[],
+            jurisdiction=req.canton.upper() if req.canton else None,
+            legal_domain="droit_fiscal",
         )
     except Exception as e:
-        log.error(f"Vector retrieval failed: {e}")
-        # Fallback : recherche sans filtre canton pour avoir au moins des sources fédérales
-        try:
-            chunks = await retrieve_chunks(
-                pool=pool,
-                query_embedding=query_embedding,
-                limit=req.max_sources,
-                filters={"legal_domain": "droit_fiscal"},
-            )
-        except Exception as e2:
-            log.error(f"Fallback retrieval also failed: {e2}")
-            raise HTTPException(status_code=502, detail="Vector search unavailable")
+        log.error(f"RAG fiscal error: {e}")
+        raise HTTPException(status_code=502, detail="RAG service unavailable")
 
-    # Score de confiance moyen
-    distances = [c.get("distance", 1.0) for c in chunks]
-    confidence = round(1 - (sum(distances) / len(distances)), 3) if distances else 0.0
-
-    # Si aucun résultat pertinent (distance > 0.7 = peu pertinent)
-    if not chunks or (distances and min(distances) > 0.7):
-        return FiscalQueryResponse(
-            reponse=(
-                "Je n'ai pas trouvé de disposition fiscale directement applicable à votre question "
-                "dans ma base de données. Consultez directement le portail Fedlex "
-                "(https://www.fedlex.admin.ch) ou le service cantonal des impôts compétent."
-            ),
-            sources=[],
-            confidence=0.0,
-            canton=req.canton,
-        )
-
-    # 4. Construire le contexte RAG
-    context = build_fiscal_context(chunks, req.canton, req.annee)
-
-    # 5. Appel Claude avec prompt spécialisé fiscal
-    messages = [
-        {
-            "role": "user",
-            "content": (
-                f"{context}\n\n"
-                f"=== QUESTION ===\n{req.question}"
-            ),
-        }
-    ]
-
-    try:
-        claude_response = await call_claude(
-            messages=messages,
-            system_prompt=FISCAL_SYSTEM_PROMPT,
-            max_tokens=1500,
-        )
-    except Exception as e:
-        log.error(f"Claude API failed: {e}")
-        raise HTTPException(status_code=502, detail="AI service unavailable")
-
-    # 6. Parser les sources depuis les chunks
+    # generate_answer retourne {"response": ..., "sources": [...], "confidence": ...}
     sources = []
-    for chunk in chunks:
-        meta = chunk.get("metadata", {})
-        art_num = meta.get("article_number", "")
-        law = meta.get("law_name") or meta.get("act_short") or meta.get("act_title", "")
-        jurisdiction = meta.get("jurisdiction", "CH")
-        url = meta.get("source_url") or meta.get("fedlex_url", "")
-
-        reference = f"{art_num} {law}".strip()
-        if jurisdiction not in ("CH", ""):
-            reference += f" ({jurisdiction})"
-
+    seen = set()
+    for s in result.get("sources", []):
+        ref = s.get("reference") or s.get("article_number") or "Disposition fiscale"
+        if ref in seen:
+            continue
+        seen.add(ref)
         sources.append(FiscalSource(
-            reference=reference or "Disposition fiscale",
-            titre=law or "Droit fiscal suisse",
-            url=url or "https://www.fedlex.admin.ch",
-            jurisdiction=jurisdiction,
+            reference=ref,
+            titre=s.get("titre") or s.get("law_name") or "Droit fiscal suisse",
+            url=s.get("url") or s.get("fedlex_url") or "https://www.fedlex.admin.ch",
+            jurisdiction=s.get("jurisdiction") or req.canton or "CH",
         ))
 
-    # Déduplication des sources
-    seen_refs = set()
-    unique_sources = []
-    for s in sources:
-        if s.reference not in seen_refs:
-            seen_refs.add(s.reference)
-            unique_sources.append(s)
+    confidence_map = {"high": 0.85, "moderate": 0.60, "none": 0.0}
+    conf_raw = result.get("confidence", "none")
+    confidence = confidence_map.get(conf_raw, 0.5) if isinstance(conf_raw, str) else float(conf_raw)
 
     return FiscalQueryResponse(
-        reponse=claude_response,
-        sources=unique_sources,
+        reponse=result.get("response", ""),
+        sources=sources,
         confidence=confidence,
         canton=req.canton,
     )
-
 
 # ---------------------------------------------------------------------------
 # Route de test (sanity check sans consommer de tokens Claude)

@@ -62,3 +62,4 @@ if os.path.exists(frontend):
     @app.get("/login")
     async def serve_login():
         return FileResponse(os.path.join(frontend, "login.html"))
+# redeploy Sun Mar  1 20:41:41 UTC 2026

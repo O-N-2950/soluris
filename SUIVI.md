@@ -9,9 +9,10 @@
 
 | # | Tâche | Statut | Notes |
 |---|-------|--------|-------|
-| B1 | Configurer `ANTHROPIC_API_KEY` sur Railway | ❌ | Chat IA impossible sans ça |
-| B2 | Configurer `COHERE_API_KEY` sur Railway | ❌ | Embeddings impossibles sans ça |
-| B3 | Configurer `TAIX_INTERNAL_KEY` sur Railway | ❌ | Intégration tAIx bloquée |
+| B1 | Configurer `COHERE_API_KEY` sur Railway | ❌ | Bloque UNIQUEMENT la génération d'embeddings (étape après ingestion) |
+| B2 | Configurer `ANTHROPIC_API_KEY` sur Railway | ❌ | Bloque UNIQUEMENT le chat utilisateur (pas le scraping/ingestion) |
+| B3 | Configurer `TAIX_INTERNAL_KEY` sur Railway | ❌ | Bloque UNIQUEMENT l'intégration tAIx |
+| **NB** | **Scraping + ingestion = zéro clé API requise** | ✅ | On peut ingérer tout le contenu maintenant |
 
 ---
 
@@ -120,14 +121,16 @@
 
 ## 🎯 Prochaines actions dans l'ordre
 
-1. **[5 min]** Configurer `ANTHROPIC_API_KEY` + `COHERE_API_KEY` + `TAIX_INTERNAL_KEY` sur Railway
-2. **[2h]** Lancer `fedlex.py` → ingérer 5 973 articles fédéraux en prod
-3. **[3h]** Lancer `entscheidsuche.py` → ingérer ATF en prod
-4. **[2h]** Lancer `embed_chunks.py` → générer embeddings Cohere en prod
-5. **[4h]** Lancer `cantonal_tax.py` canton par canton → ingérer lois fiscales
-6. **[1h]** Tester RAG end-to-end avec question fiscale réelle
-7. **[1h]** Configurer domaine soluris.ch → Railway
+1. **[2h]** Lancer `fedlex.py` → ingérer 5 973 articles fédéraux en prod *(aucune clé requise)*
+2. **[3h]** Lancer `entscheidsuche.py` → ingérer ATF en prod *(aucune clé requise)*
+3. **[4h]** Lancer `cantonal_tax.py` canton par canton → ingérer lois fiscales *(aucune clé requise)*
+4. **[5 min]** Configurer `COHERE_API_KEY` sur Railway
+5. **[2h]** Lancer `embed_chunks.py` → générer embeddings Cohere en prod
+6. **[5 min]** Configurer `ANTHROPIC_API_KEY` + `TAIX_INTERNAL_KEY` sur Railway
+7. **[1h]** Tester RAG end-to-end avec question fiscale réelle
+8. **[1h]** Configurer domaine soluris.ch → Railway
 
 ---
 
 *Mise à jour automatique à chaque session Claude*
+

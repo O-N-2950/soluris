@@ -7,7 +7,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from backend.db.database import init_db
-from backend.routers import auth, chat, conversations, health, fiscal
+from backend.routers import auth, chat, conversations, health
+try:
+    from backend.routers import fiscal
+    _fiscal_ok = True
+except Exception as _e:
+    import logging
+    logging.getLogger("soluris").error(f"FISCAL IMPORT FAILED: {_e}")
+    _fiscal_ok = False
 
 
 @asynccontextmanager
@@ -41,7 +48,8 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(conversations.router, prefix="/api", tags=["conversations"])
 app.include_router(health.router, tags=["health"])
-app.include_router(fiscal.router)  # tAIx internal endpoint
+if _fiscal_ok:
+    app.include_router(fiscal.router)  # tAIx internal endpoint
 
 # Static files
 frontend = os.path.join(os.path.dirname(__file__), "..", "frontend")

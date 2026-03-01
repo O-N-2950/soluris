@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from backend.db.database import init_db
-from backend.routers import auth, chat, conversations, health
+from backend.routers import auth, chat, conversations, health, fiscal
 
 
 @asynccontextmanager
@@ -41,6 +41,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(conversations.router, prefix="/api", tags=["conversations"])
 app.include_router(health.router, tags=["health"])
+app.include_router(fiscal.router)  # tAIx internal endpoint
 
 # Static files
 frontend = os.path.join(os.path.dirname(__file__), "..", "frontend")

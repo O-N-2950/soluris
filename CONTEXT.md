@@ -48,7 +48,7 @@ soluris/
 │   │   ├── auth.py          ← JWT login/signup/me
 │   │   ├── chat.py          ← RAG endpoint /api/chat (+ quota + filtres)
 │   │   ├── conversations.py ← History
-│   │   ├── fiscal.py        ← /api/fiscal-query (tAIx integration) ← NOUVEAU
+│   │   ├── fiscal.py        ← /api/fiscal-query (tAIx integration)
 │   │   └── health.py        ← /health
 │   ├── services/
 │   │   ├── rag.py           ← Claude API + vector retrieval + citations
@@ -60,7 +60,7 @@ soluris/
 │   └── scrapers/
 │       ├── fedlex.py        ← SPARQL (5 973 articles, 22 codes — +7 fiscaux)
 │       ├── entscheidsuche.py ← Elasticsearch API + scrape_fiscal_atf()
-│       └── cantonal_tax.py  ← Lois fiscales 26 cantons + circulaires AFC ← NOUVEAU
+│       └── cantonal_tax.py  ← Lois fiscales 26 cantons + circulaires AFC
 ├── data/
 │   ├── fedlex/              ← JSON scrapés (gitignored)
 │   ├── jurisprudence/       ← JSON scrapés (gitignored)
@@ -109,7 +109,7 @@ soluris/
 | GET | `/api/conversations` | Liste conversations |
 | GET | `/api/conversations/{id}` | Messages d'une conversation |
 | DELETE | `/api/conversations/{id}` | Supprimer |
-| **POST** | **`/api/fiscal-query`** | **RAG fiscal pour tAIx (clé interne)** ← NOUVEAU |
+| POST | `/api/fiscal-query` | RAG fiscal pour tAIx (clé interne) |
 | GET | `/api/fiscal-query/ping` | Sanity check endpoint fiscal |
 | GET | `/health` | Healthcheck Railway |
 
@@ -124,20 +124,6 @@ tAIx (juraitax) → POST /api/fiscal-query → Soluris RAG → Claude
                   ← {reponse, sources: [{reference, titre, url}], confidence}
 ```
 
-**Exemple de réponse Soluris vers tAIx** :
-```json
-{
-  "reponse": "Le montant maximum déductible pour le pilier 3a est de CHF 7'056 (Art. 7 OPP3)...",
-  "sources": [
-    {"reference": "Art. 82 LPP", "titre": "Cotisations du salarié", "url": "...fedlex..."},
-    {"reference": "Art. 7 OPP3", "titre": "Montant de la déduction", "url": "...fedlex..."}
-  ],
-  "confidence": 0.94,
-  "canton": "GE",
-  "domain": "droit_fiscal"
-}
-```
-
 **Variable d'env requise** : `TAIX_INTERNAL_KEY` (à configurer dans Railway)
 
 ## 🚀 Déploiement
@@ -147,9 +133,14 @@ tAIx (juraitax) → POST /api/fiscal-query → Soluris RAG → Claude
 - **Services** :
   - `postgres` : pgvector/pgvector:pg16 + volume persistent
   - `soluris-web` : Dockerfile → FastAPI/uvicorn, auto-deploy depuis GitHub main
-- **Variables requises** : DATABASE_URL, JWT_SECRET, ANTHROPIC_API_KEY (manquante), COHERE_API_KEY (manquante), **TAIX_INTERNAL_KEY** (nouveau, pour tAIx)
+- **Variables Railway** :
+  - `DATABASE_URL` ✅ configurée
+  - `JWT_SECRET` ✅ configurée
+  - `ANTHROPIC_API_KEY` ❌ manquante — **non bloquant** (scraping + ingestion + embeddings fonctionnent sans)
+  - `COHERE_API_KEY` ❌ manquante — bloque uniquement la génération d'embeddings
+  - `TAIX_INTERNAL_KEY` ❌ manquante — bloque uniquement l'intégration tAIx
 - **Domaine Railway** : soluris-web-production.up.railway.app
-- **Custom domain** : soluris.ch (pas encore configuré — domaine pas encore acheté)
+- **Custom domain** : soluris.ch (pas encore configuré)
 
 ## 📊 Progression TODO
 
@@ -162,10 +153,11 @@ tAIx (juraitax) → POST /api/fiscal-query → Soluris RAG → Claude
 - [x] Phase 1.7 : Quota enforcement — plans Essentiel/Pro/Cabinet + compteur
 - [x] Phase 1.8 : Landing page — pricing 89/149/349, essai 7j, badges souveraineté
 - [x] Déploiement Railway — PostgreSQL pgvector + FastAPI, healthcheck OK
-- [x] **Scraper cantonal_tax.py** — 26 cantons catalogués, 17 en HTML direct
-- [x] **Endpoint /api/fiscal-query** — intégration tAIx, clé interne, RAG fiscal
+- [x] Scraper cantonal_tax.py — 26 cantons catalogués, 17 en HTML direct
+- [x] Endpoint /api/fiscal-query — intégration tAIx, clé interne, RAG fiscal
 - [ ] Ingestion données en production (fedlex + jurisprudence + lois fiscales cantonales)
+- [ ] Configurer COHERE_API_KEY dans Railway
 - [ ] Configurer TAIX_INTERNAL_KEY dans Railway
 
 ---
-*Dernière mise à jour : 2026-03-01 — Extension fiscale tAIx : scraper 26 cantons (cantonal_tax.py), endpoint /api/fiscal-query, +7 RS fiscaux fédéraux (LIFD, LHID, LPP, OPP3, LTVA...), mode fiscal ATF (IIe Cour TF)*
+*Dernière mise à jour : 2026-03-01 — ANTHROPIC_API_KEY non bloquante : scraping, ingestion et embeddings fonctionnent sans elle*

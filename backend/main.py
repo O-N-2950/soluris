@@ -71,3 +71,11 @@ if os.path.exists(frontend):
     async def serve_login():
         return FileResponse(os.path.join(frontend, "login.html"))
 # redeploy Sun Mar  1 20:41:41 UTC 2026
+
+
+@app.get("/debug/fiscal-status")
+async def fiscal_status():
+    return {
+        "fiscal_loaded": _fiscal_ok,
+        "endpoints": ["/api/fiscal-query"] if _fiscal_ok else [],
+    }

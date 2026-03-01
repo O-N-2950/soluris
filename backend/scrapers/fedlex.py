@@ -42,6 +42,7 @@ REQUEST_TIMEOUT = 60  # seconds
 
 # Codes prioritaires pour la Phase 1 (ordre d'importance pour un avocat suisse)
 PRIORITY_RS = [
+    # DROIT GÉNÉRAL
     "220",      # CO  — Code des obligations
     "210",      # CC  — Code civil
     "311.0",    # CP  — Code pénal
@@ -57,6 +58,14 @@ PRIORITY_RS = [
     "830.1",    # LPGA — Loi sur la partie générale du droit des assurances sociales
     "832.10",   # LAMal — Loi sur l'assurance-maladie
     "831.10",   # LAVS — Loi sur l'AVS
+    # FISCALITÉ FÉDÉRALE — ajout tAIx (2026-03-01)
+    "642.11",    # LIFD — Loi fédérale sur l'impôt fédéral direct
+    "642.14",    # LHID — Loi fédérale sur l'harmonisation des impôts directs
+    "642.21",    # LT   — Loi fédérale sur l'impôt anticipé
+    "641.10",    # LTVA — Loi fédérale sur la TVA
+    "831.40",    # LPP  — Loi sur la prévoyance professionnelle (pilier 2)
+    "831.461.3", # OPP3 — Ordonnance sur le pilier 3a (déductions 3a)
+    "614.0",     # OFPr — Ordonnance sur les frais professionnels
 ]
 
 logging.basicConfig(

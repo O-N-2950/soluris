@@ -16,6 +16,14 @@ except Exception as _e:
     logging.getLogger("soluris").error(f"FISCAL IMPORT FAILED: {_e}")
     _fiscal_ok = False
 
+try:
+    from backend.routers import admin as admin_router
+    _admin_ok = True
+except Exception as _e:
+    import logging
+    logging.getLogger("soluris").error(f"ADMIN IMPORT FAILED: {_e}")
+    _admin_ok = False
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -50,6 +58,8 @@ app.include_router(conversations.router, prefix="/api", tags=["conversations"])
 app.include_router(health.router, tags=["health"])
 if _fiscal_ok:
     app.include_router(fiscal.router)  # tAIx internal endpoint
+if _admin_ok:
+    app.include_router(admin_router.router)  # Admin ingestion endpoint
 
 # Static files
 frontend = os.path.join(os.path.dirname(__file__), "..", "frontend")
@@ -70,12 +80,12 @@ if os.path.exists(frontend):
     @app.get("/login")
     async def serve_login():
         return FileResponse(os.path.join(frontend, "login.html"))
-# redeploy Sun Mar  1 20:41:41 UTC 2026
 
 
 @app.get("/debug/fiscal-status")
 async def fiscal_status():
     return {
         "fiscal_loaded": _fiscal_ok,
+        "admin_loaded": _admin_ok,
         "endpoints": ["/api/fiscal-query"] if _fiscal_ok else [],
     }

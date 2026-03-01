@@ -22,6 +22,19 @@ function loadFilters() {
   if (j) j.value = localStorage.getItem('soluris_jurisdiction') || '';
   if (d) d.value = localStorage.getItem('soluris_domain') || '';
 }
+// Draft persistence — save as user types
+function initDraftPersistence() {
+  const input = document.getElementById('messageInput');
+  if (!input) return;
+  input.addEventListener('input', () => {
+    if (input.value.trim()) {
+      localStorage.setItem('soluris_draft', input.value);
+    } else {
+      localStorage.removeItem('soluris_draft');
+    }
+  });
+}
+
 function getFilters() {
   const j = document.getElementById('filterJurisdiction');
   const d = document.getElementById('filterDomain');
@@ -35,6 +48,13 @@ function getFilters() {
 document.addEventListener('DOMContentLoaded', async () => {
   if (!getToken()) return window.location.href = '/login';
   loadFilters();
+  initDraftPersistence();
+  // Restore draft if user left mid-typing
+  const draft = localStorage.getItem('soluris_draft');
+  if (draft) {
+    const input = document.getElementById('messageInput');
+    if (input) { input.value = draft; autoResize(input); }
+  }
   await loadUser();
   await loadConversations();
 });
@@ -168,6 +188,7 @@ async function sendMessage() {
   appendMessage('user', text, null);
   messages.push({ role: 'user', content: text });
   input.value = '';
+  localStorage.removeItem('soluris_draft');
   autoResize(input);
 
   isStreaming = true;

@@ -738,5 +738,122 @@ def main():
     elif args.mode == "crossref":
         mode_crossref(out)
 
+    elif args.mode == "fiscal":
+        stats = scrape_fiscal_atf(
+            since_date=getattr(args, 'since', '2015-01-01'),
+            limit=args.limit or 5000,
+            output_dir=out,
+            lang=args.lang,
+        )
+        print(f"Fiscal ATF: {stats['fiscal_decisions']} decisions fiscales / {stats['decisions']} total")
+
+
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------------------
+# Mode fiscal — ATF fiscaux pour tAIx (ajout 2026-03-01)
+# ---------------------------------------------------------------------------
+
+# Chambres fiscales du Tribunal fédéral et tribunaux cantonaux fiscaux
+FISCAL_COURTS = [
+    "CH_BGer_002",   # TF — IIe Cour de droit public (fiscalité fédérale principale)
+    "CH_BGer_001",   # TF — Ire Cour de droit public (fiscalité / droit public)
+    "CH_BGE_999",    # ATF publiés (tous domaines, filtrés par keyword)
+]
+
+# Mots-clés pour filtrer les ATF fiscaux dans la recherche full-text
+FISCAL_KEYWORDS = [
+    "impôt", "fiscal", "contribuable", "déduction", "revenu imposable",
+    "fortune imposable", "IFD", "LIFD", "LHID", "TVA", "impôt anticipé",
+    "pilier 3a", "LPP", "prévoyance", "exonération", "taux d'imposition",
+    "assiette fiscale", "AFC", "Administration fédérale des contributions",
+]
+
+
+def scrape_fiscal_atf(
+    since_date: str = "2015-01-01",
+    limit: int = 5000,
+    output_dir: Path = Path("data/jurisprudence"),
+    lang: str = "fr",
+) -> dict:
+    """
+    Scrappe les arrêts ATF et BGer à dominante fiscale.
+    
+    Stratégie : cibler CH_BGer_002 (IIe Cour de droit public) + filtrer
+    les décisions contenant des mots-clés fiscaux dans le résumé/texte.
+    
+    Args:
+        since_date : Date minimum des arrêts (format "YYYY-MM-DD")
+        limit      : Nombre maximum d'arrêts à récupérer
+        output_dir : Répertoire de sortie JSON
+        lang       : Langue ("fr" uniquement pour tAIx)
+    
+    Returns:
+        dict avec stats : decisions, chunks, fiscal_decisions
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    all_stats = {"decisions": 0, "chunks": 0, "fiscal_decisions": 0}
+    
+    log.info(f"== Scraping ATF fiscaux depuis {since_date}, limite={limit} ==")
+    
+    for court_hierarchy in FISCAL_COURTS:
+        log.info(f"Court: {court_hierarchy}")
+        
+        # Adapter le filtre selon la cour
+        if court_hierarchy == "CH_BGer_002":
+            # Toutes les décisions de la IIe Cour de droit public sont pertinentes
+            stats = scrape(
+                hierarchy=court_hierarchy,
+                lang=lang,
+                limit=limit // len(FISCAL_COURTS),
+                output_dir=output_dir,
+                batch_size=200,
+                label=f"fiscal_{court_hierarchy}",
+                date_from=since_date,
+            )
+        else:
+            # Pour les autres cours : scraper et post-filtrer par mots-clés
+            stats = scrape(
+                hierarchy=court_hierarchy,
+                lang=lang,
+                limit=limit // len(FISCAL_COURTS),
+                output_dir=output_dir,
+                batch_size=200,
+                label=f"fiscal_{court_hierarchy}",
+                date_from=since_date,
+            )
+        
+        # Post-filtrage : marquer les arrêts comme fiscaux
+        output_file = output_dir / f"fiscal_{court_hierarchy}.jsonl"
+        if output_file.exists():
+            fiscal_count = 0
+            filtered_lines = []
+            with open(output_file, encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        doc = json.loads(line)
+                        text_lower = (doc.get("abstract", "") + " " + doc.get("text", "")).lower()
+                        is_fiscal = any(kw.lower() in text_lower for kw in FISCAL_KEYWORDS)
+                        if is_fiscal:
+                            doc["legal_domain"] = "droit_fiscal"
+                            filtered_lines.append(json.dumps(doc, ensure_ascii=False))
+                            fiscal_count += 1
+                    except json.JSONDecodeError:
+                        continue
+            
+            # Réécrire le fichier avec uniquement les arrêts fiscaux
+            fiscal_output = output_dir / f"atf_fiscal_{court_hierarchy}.jsonl"
+            with open(fiscal_output, "w", encoding="utf-8") as f:
+                f.write("
+".join(filtered_lines))
+            
+            all_stats["fiscal_decisions"] += fiscal_count
+            log.info(f"[{court_hierarchy}] {fiscal_count}/{stats.get('decisions', 0)} arrêts fiscaux filtrés")
+        
+        all_stats["decisions"] += stats.get("decisions", 0)
+        all_stats["chunks"] += stats.get("chunks", 0)
+    
+    log.info(f"== Total ATF fiscaux : {all_stats['fiscal_decisions']} décisions ==")
+    return all_stats

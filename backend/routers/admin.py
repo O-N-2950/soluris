@@ -530,18 +530,21 @@ async def get_job_status(job_id: str, x_admin_key: Optional[str] = Header(None))
 async def db_stats(x_admin_key: Optional[str] = Header(None)):
     check_admin_key(x_admin_key)
     try:
+        # Run migrations in a separate connection first
+        mig_conn = await asyncpg.connect(DATABASE_URL)
+        for migration in [
+            "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb",
+            "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS reference TEXT",
+            "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS jurisdiction TEXT DEFAULT 'CH'",
+        ]:
+            try:
+                await mig_conn.execute(migration)
+            except Exception:
+                pass
+        await mig_conn.close()
+
         conn = await asyncpg.connect(DATABASE_URL)
         try:
-            # Run any missing migrations first
-            for migration in [
-                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb",
-                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS reference TEXT",
-                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS jurisdiction TEXT DEFAULT 'CH'",
-            ]:
-                try:
-                    await conn.execute(migration)
-                except Exception:
-                    pass
 
             docs = await conn.fetchval("SELECT COUNT(*) FROM legal_documents")
             chunks = await conn.fetchval("SELECT COUNT(*) FROM legal_chunks")

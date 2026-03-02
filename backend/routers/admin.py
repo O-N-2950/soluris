@@ -429,6 +429,7 @@ async def ingest_cantonal(conn: asyncpg.Connection, cantons: list, status: dict)
             continue
 
         try:
+            doc_content = "\n\n".join(a["text"] for a in articles) if articles else raw_text
             doc_id = await conn.fetchval(
                 """
                 INSERT INTO legal_documents
@@ -439,39 +440,38 @@ async def ingest_cantonal(conn: asyncpg.Connection, cantons: list, status: dict)
                 RETURNING id
                 """,
                 f"{canton}_tax_loi", law_title, f"Loi fiscale {canton}",
-                (articles[0]["text"] if articles else raw_text[:100000])[:100000],
-                url,
+                doc_content[:100000], url,
             )
         except Exception as e:
             log.error(f"  {canton} doc error: {e}")
             continue
 
-            if articles:
-                for art in articles:
-                    try:
-                        await conn.execute(
-                            """
-                            INSERT INTO legal_chunks
-                              (document_id, chunk_index, chunk_text, source_ref, source_url)
-                            VALUES ($1, $2, $3, $4, $5)
-                            ON CONFLICT DO NOTHING
-                            """,
-                            doc_id, art["idx"], art["text"], art["ref"], url,
-                        )
-                    total += 1
-                except Exception as e:
-                    log.debug(f"  {canton} chunk error: {e}")
-            else:
+        if articles:
+            for art in articles:
                 try:
                     await conn.execute(
                         """
                         INSERT INTO legal_chunks
                           (document_id, chunk_index, chunk_text, source_ref, source_url)
-                        VALUES ($1, 0, $2, $3, $4)
+                        VALUES ($1, $2, $3, $4, $5)
                         ON CONFLICT DO NOTHING
                         """,
-                        doc_id, raw_text[:4000], f"Loi fiscale {canton}", url,
+                        doc_id, art["idx"], art["text"], art["ref"], url,
                     )
+                    total += 1
+                except Exception as e:
+                    log.debug(f"  {canton} chunk error: {e}")
+        else:
+            try:
+                await conn.execute(
+                    """
+                    INSERT INTO legal_chunks
+                      (document_id, chunk_index, chunk_text, source_ref, source_url)
+                    VALUES ($1, 0, $2, $3, $4)
+                    ON CONFLICT DO NOTHING
+                    """,
+                    doc_id, raw_text[:4000], f"Loi fiscale {canton}", url,
+                )
                 total += 1
             except Exception as e:
                 log.debug(f"  {canton} raw chunk error: {e}")

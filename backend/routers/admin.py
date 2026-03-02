@@ -276,12 +276,12 @@ async def ingest_fedlex_codes(conn: asyncpg.Connection, rs_list: list, status: d
                 await conn.execute(
                     """
                     INSERT INTO legal_chunks
-                      (document_id, chunk_index, content, chunk_type, reference, section_path, url)
-                    VALUES ($1, $2, $3, 'article', $4, $5, $6)
+                      (document_id, chunk_index, chunk_text, source_ref, source_url)
+                    VALUES ($1, $2, $3, $4, $5)
                     ON CONFLICT DO NOTHING
                     """,
                     doc_id, idx, chunk["text"],
-                    chunk["article_ref"], chunk["section_path"], chunk["url"],
+                    chunk["article_ref"], chunk["url"],
                 )
                 chunk_count += 1
             except Exception as e:
@@ -349,8 +349,8 @@ async def ingest_atf_decisions(conn: asyncpg.Connection, limit: int, status: dic
                 await conn.execute(
                     """
                     INSERT INTO legal_chunks
-                      (document_id, chunk_index, content, chunk_type, reference, url)
-                    VALUES ($1, 0, $2, 'decision', $3, $4)
+                      (document_id, chunk_index, chunk_text, source_ref, source_url)
+                    VALUES ($1, 0, $2, $3, $4)
                     ON CONFLICT DO NOTHING
                     """,
                     doc_id, text[:4000], ref, src.get("URL", ""),
@@ -410,32 +410,32 @@ async def ingest_cantonal(conn: asyncpg.Connection, cantons: list, status: dict)
             log.error(f"  {canton} doc error: {e}")
             continue
 
-        if articles:
-            for art in articles:
+            if articles:
+                for art in articles:
+                    try:
+                        await conn.execute(
+                            """
+                            INSERT INTO legal_chunks
+                              (document_id, chunk_index, chunk_text, source_ref, source_url)
+                            VALUES ($1, $2, $3, $4, $5)
+                            ON CONFLICT DO NOTHING
+                            """,
+                            doc_id, art["idx"], art["text"], art["ref"], url,
+                        )
+                    total += 1
+                except Exception as e:
+                    log.debug(f"  {canton} chunk error: {e}")
+            else:
                 try:
                     await conn.execute(
                         """
                         INSERT INTO legal_chunks
-                          (document_id, chunk_index, content, chunk_type, reference, url)
-                        VALUES ($1, $2, $3, 'article', $4, $5)
+                          (document_id, chunk_index, chunk_text, source_ref, source_url)
+                        VALUES ($1, 0, $2, $3, $4)
                         ON CONFLICT DO NOTHING
                         """,
-                        doc_id, art["idx"], art["text"], art["ref"], url,
+                        doc_id, raw_text[:4000], f"Loi fiscale {canton}", url,
                     )
-                    total += 1
-                except Exception as e:
-                    log.debug(f"  {canton} chunk error: {e}")
-        else:
-            try:
-                await conn.execute(
-                    """
-                    INSERT INTO legal_chunks
-                      (document_id, chunk_index, content, chunk_type, reference, url)
-                    VALUES ($1, 0, $2, 'law_text', $3, $4)
-                    ON CONFLICT DO NOTHING
-                    """,
-                    doc_id, raw_text[:4000], f"Loi fiscale {canton}", url,
-                )
                 total += 1
             except Exception as e:
                 log.debug(f"  {canton} raw chunk error: {e}")

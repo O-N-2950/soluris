@@ -117,6 +117,17 @@ async def init_db():
                 CREATE INDEX IF NOT EXISTS idx_chunk_doc ON legal_chunks(document_id);
             """)
             
+            # ── Migrations: add columns that may be missing from older prod tables ──
+            for col_sql, col_name, tbl in [
+                ("ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb", "metadata", "legal_documents"),
+                ("ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS reference TEXT", "reference", "legal_documents"),
+                ("ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS jurisdiction TEXT DEFAULT 'CH'", "jurisdiction", "legal_documents"),
+            ]:
+                try:
+                    await conn.execute(col_sql)
+                except Exception:
+                    pass
+
             # Add vector column if pgvector available
             try:
                 has_vector = await conn.fetchval("""

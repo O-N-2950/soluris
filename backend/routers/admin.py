@@ -532,27 +532,42 @@ async def db_stats(x_admin_key: Optional[str] = Header(None)):
     try:
         conn = await asyncpg.connect(DATABASE_URL)
         try:
-            # Check actual columns
-            cols = await conn.fetch(
-                "SELECT column_name FROM information_schema.columns WHERE table_name='legal_chunks'"
-            )
-            chunk_cols = [r["column_name"] for r in cols]
-            log.info(f"legal_chunks columns: {chunk_cols}")
+            # Run any missing migrations first
+            for migration in [
+                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb",
+                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS reference TEXT",
+                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS jurisdiction TEXT DEFAULT 'CH'",
+            ]:
+                try:
+                    await conn.execute(migration)
+                except Exception:
+                    pass
 
             docs = await conn.fetchval("SELECT COUNT(*) FROM legal_documents")
             chunks = await conn.fetchval("SELECT COUNT(*) FROM legal_chunks")
-            has_embedding = "embedding" in chunk_cols
-            embedded = await conn.fetchval(
-                "SELECT COUNT(*) FROM legal_chunks WHERE embedding IS NOT NULL"
-            ) if has_embedding else 0
+
+            # Check embedding column
+            chunk_cols = [r["column_name"] for r in await conn.fetch(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='legal_chunks'"
+            )]
+            doc_cols = [r["column_name"] for r in await conn.fetch(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='legal_documents'"
+            )]
+
+            embedded = 0
+            if "embedding" in chunk_cols:
+                embedded = await conn.fetchval("SELECT COUNT(*) FROM legal_chunks WHERE embedding IS NOT NULL")
 
             by_source = await conn.fetch(
                 "SELECT source, COUNT(*) as cnt FROM legal_documents GROUP BY source ORDER BY cnt DESC"
             )
-            by_type = await conn.fetch(
-                "SELECT doc_type, COUNT(*) as cnt FROM legal_documents GROUP BY doc_type"
-            )
+            by_type = []
+            if "doc_type" in doc_cols:
+                by_type = await conn.fetch(
+                    "SELECT doc_type, COUNT(*) as cnt FROM legal_documents GROUP BY doc_type"
+                )
             users = await conn.fetchval("SELECT COUNT(*) FROM users")
+
         finally:
             await conn.close()
 
@@ -560,10 +575,12 @@ async def db_stats(x_admin_key: Optional[str] = Header(None)):
             "legal_documents": docs,
             "legal_chunks": chunks,
             "chunks_embedded": embedded,
+            "chunks_to_embed": chunks - embedded,
             "by_source": [{"source": r["source"], "count": r["cnt"]} for r in by_source],
             "by_type": [{"type": r["doc_type"], "count": r["cnt"]} for r in by_type],
             "users": users,
             "legal_chunks_columns": chunk_cols,
+            "legal_documents_columns": doc_cols,
         }
     except Exception as e:
         raise HTTPException(500, f"DB error: {e}")

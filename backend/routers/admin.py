@@ -623,3 +623,83 @@ async def db_stats(x_admin_key: Optional[str] = Header(None)):
         }
     except Exception as e:
         raise HTTPException(500, f"DB error: {e}")
+
+
+@router.get("/debug/sparql")
+async def debug_sparql(x_admin_key: Optional[str] = Header(None)):
+    """Test SPARQL connectivity for CO (RS 220)."""
+    check_admin_key(x_admin_key)
+    import traceback
+
+    def _test():
+        try:
+            html_url = _sparql_get_html_url("220")
+            return {"sparql_ok": html_url is not None, "html_url": html_url}
+        except Exception as e:
+            return {"sparql_ok": False, "error": str(e), "trace": traceback.format_exc()[-500:]}
+
+    result = await asyncio.to_thread(_test)
+
+    if result.get("html_url"):
+        def _test_html(url):
+            try:
+                chunks = _fetch_and_parse_html(url, "220", "Code des obligations", "CO")
+                return {"html_ok": True, "chunks_found": len(chunks), "sample": chunks[0]["text"][:200] if chunks else None}
+            except Exception as e:
+                return {"html_ok": False, "error": str(e)}
+        result.update(await asyncio.to_thread(_test_html, result["html_url"]))
+
+    return result
+
+
+@router.get("/debug/db")
+async def debug_db(x_admin_key: Optional[str] = Header(None)):
+    """Test DB connectivity and run migrations."""
+    check_admin_key(x_admin_key)
+    try:
+        conn = await asyncpg.connect(DATABASE_URL)
+        try:
+            for sql in [
+                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb",
+                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS reference TEXT",
+                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS jurisdiction TEXT DEFAULT 'CH'",
+                "ALTER TABLE legal_chunks ADD COLUMN IF NOT EXISTS source_ref TEXT",
+                "ALTER TABLE legal_chunks ADD COLUMN IF NOT EXISTS source_url TEXT",
+            ]:
+                try:
+                    await conn.execute(sql)
+                except Exception:
+                    pass
+
+            docs = await conn.fetchval("SELECT COUNT(*) FROM legal_documents")
+            chunks = await conn.fetchval("SELECT COUNT(*) FROM legal_chunks")
+            doc_cols = [r["column_name"] for r in await conn.fetch(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='legal_documents' ORDER BY ordinal_position"
+            )]
+            chunk_cols = [r["column_name"] for r in await conn.fetch(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='legal_chunks' ORDER BY ordinal_position"
+            )]
+            test_ok = False
+            try:
+                await conn.execute("""
+                    INSERT INTO legal_documents (source, external_id, doc_type, title, reference, language, content, url)
+                    VALUES ('test', 'test_debug_001', 'test', 'Test', 'TEST', 'fr', 'test content', 'http://test')
+                    ON CONFLICT (source, external_id) DO NOTHING
+                """)
+                await conn.execute("DELETE FROM legal_documents WHERE source='test'")
+                test_ok = True
+            except Exception as e:
+                test_ok = str(e)
+
+            return {
+                "db_ok": True,
+                "legal_documents": docs,
+                "legal_chunks": chunks,
+                "doc_columns": doc_cols,
+                "chunk_columns": chunk_cols,
+                "insert_test": test_ok,
+            }
+        finally:
+            await conn.close()
+    except Exception as e:
+        return {"db_ok": False, "error": str(e)}

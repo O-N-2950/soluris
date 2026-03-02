@@ -112,19 +112,55 @@ CANTONAL_TAX_URLS = {
 # HTTP helpers (synchronous — run via asyncio.to_thread)
 # ---------------------------------------------------------------------------
 
-def _sparql_get_html_url(rs_number: str) -> Optional[str]:
+def _sparql_get_ca_uri(rs_number: str) -> Optional[str]:
+    """Step 1: RS notation → ConsolidationAbstract URI (requires STR() for typed literal)."""
     query = f"""
 PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
-SELECT ?url WHERE {{
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?ca WHERE {{
   ?ca a jolux:ConsolidationAbstract ;
-      jolux:isRealizedBy ?expr .
+      jolux:classifiedByTaxonomyEntry ?tax .
+  ?tax skos:notation ?notation .
+  FILTER(STR(?notation) = "{rs_number}")
+}}
+LIMIT 1
+"""
+    try:
+        resp = requests.post(
+            "https://fedlex.data.admin.ch/sparqlendpoint",
+            data={"query": query},
+            headers={"Accept": "application/sparql-results+json"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        rows = resp.json()["results"]["bindings"]
+        if rows:
+            return rows[0]["ca"]["value"]
+    except Exception as e:
+        log.warning(f"SPARQL CA URI error RS {rs_number}: {e}")
+    return None
+
+
+def _sparql_get_html_url(rs_number: str) -> Optional[str]:
+    """Step 2: ConsolidationAbstract → latest Consolidation → HTML URL."""
+    ca_uri = _sparql_get_ca_uri(rs_number)
+    if not ca_uri:
+        log.warning(f"  No ConsolidationAbstract for RS {rs_number}")
+        return None
+
+    query = f"""
+PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
+
+SELECT ?url WHERE {{
+  ?cons jolux:isMemberOf <{ca_uri}> ;
+        jolux:isRealizedBy ?expr .
   ?expr jolux:language <http://publications.europa.eu/resource/authority/language/FRA> ;
-        jolux:historicalLegalId "{rs_number}" ;
         jolux:isEmbodiedBy ?manif .
   ?manif jolux:isExemplifiedBy ?url .
   FILTER(CONTAINS(STR(?url), ".html"))
 }}
-ORDER BY DESC(?url) LIMIT 1
+ORDER BY DESC(?cons) LIMIT 1
 """
     try:
         resp = requests.post(
@@ -138,7 +174,7 @@ ORDER BY DESC(?url) LIMIT 1
         if rows:
             return rows[0]["url"]["value"]
     except Exception as e:
-        log.warning(f"SPARQL error RS {rs_number}: {e}")
+        log.warning(f"SPARQL HTML URL error RS {rs_number}: {e}")
     return None
 
 

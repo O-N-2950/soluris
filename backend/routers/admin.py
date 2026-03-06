@@ -1,11 +1,11 @@
 """
 Admin Ingestion Endpoint — /api/admin/ingest
 =============================================
-Endpoint protégé par clé admin permettant de déclencher l'ingestion
-des données juridiques depuis l'intérieur de Railway (accès DB interne).
-
-Architecture : fonctions HTTP synchrones (requests) exécutées dans asyncio.to_thread(),
-connectées à asyncpg (async) pour les inserts DB.
+WinWin V2 anti-crash rules applied:
+- Never swallow errors silently (REGLE 1)
+- Log ALL failures with [ADMIN] prefix
+- Lazy imports for external deps (REGLE 9)
+- Test connections at startup (REGLE 3)
 """
 
 import asyncio
@@ -103,18 +103,38 @@ CANTONAL_TAX_URLS = {
     "OW": ("https://ow.codex.ch/app/de/texts_of_law/631.4/versions/current", "Steuergesetz OW"),
     "SH": ("https://www.rechtssammlung.sh.ch/app/de/texts_of_law/641.100/versions/current", "Steuergesetz SH"),
     "AR": ("https://www.ar.ch/app/de/texts_of_law/621.0/versions/current", "Steuergesetz AR"),
-    # PDFs / manual - texte brut récupéré via lexfind
     "TI": ("https://www.ti.ch/fileadmin/DSC/SPED/Leggi/Legge_tributaria.pdf", "Legge tributaria TI"),
 }
+
+# MIGRATIONS — toutes les colonnes requises (idempotentes)
+MIGRATIONS = [
+    "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb",
+    "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS reference TEXT",
+    "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS jurisdiction TEXT DEFAULT 'CH'",
+    "ALTER TABLE legal_chunks ADD COLUMN IF NOT EXISTS source_ref TEXT",
+    "ALTER TABLE legal_chunks ADD COLUMN IF NOT EXISTS source_url TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_doc_source ON legal_documents(source)",
+    "CREATE INDEX IF NOT EXISTS idx_chunk_doc ON legal_chunks(document_id)",
+]
+
+
+async def _run_migrations(conn):
+    """Apply all schema migrations safely."""
+    for sql in MIGRATIONS:
+        try:
+            await conn.execute(sql)
+        except Exception as e:
+            log.debug(f"[ADMIN] Migration skipped ({e}): {sql[:60]}")
 
 
 # ---------------------------------------------------------------------------
 # HTTP helpers (synchronous — run via asyncio.to_thread)
 # ---------------------------------------------------------------------------
 
-def _sparql_get_ca_uri(rs_number: str) -> Optional[str]:
-    """Step 1: RS notation → ConsolidationAbstract URI (requires STR() for typed literal)."""
-    query = f"""
+def _sparql_get_html_url(rs_number: str) -> Optional[str]:
+    """RS notation → HTML URL via SPARQL (2-step)."""
+    # Step 1: ConsolidationAbstract URI
+    query1 = f"""
 PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 
@@ -127,29 +147,24 @@ SELECT ?ca WHERE {{
 LIMIT 1
 """
     try:
-        resp = requests.post(
+        r = requests.post(
             "https://fedlex.data.admin.ch/sparqlendpoint",
-            data={"query": query},
+            data={"query": query1},
             headers={"Accept": "application/sparql-results+json"},
             timeout=30,
         )
-        resp.raise_for_status()
-        rows = resp.json()["results"]["bindings"]
-        if rows:
-            return rows[0]["ca"]["value"]
+        r.raise_for_status()
+        rows = r.json()["results"]["bindings"]
+        if not rows:
+            log.warning(f"[ADMIN] No ConsolidationAbstract for RS {rs_number}")
+            return None
+        ca_uri = rows[0]["ca"]["value"]
     except Exception as e:
-        log.warning(f"SPARQL CA URI error RS {rs_number}: {e}")
-    return None
-
-
-def _sparql_get_html_url(rs_number: str) -> Optional[str]:
-    """Step 2: ConsolidationAbstract → latest Consolidation → HTML URL."""
-    ca_uri = _sparql_get_ca_uri(rs_number)
-    if not ca_uri:
-        log.warning(f"  No ConsolidationAbstract for RS {rs_number}")
+        log.error(f"[ADMIN] ❌ SPARQL step1 RS {rs_number}: {e}")
         return None
 
-    query = f"""
+    # Step 2: HTML URL
+    query2 = f"""
 PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
 
 SELECT ?url WHERE {{
@@ -163,18 +178,19 @@ SELECT ?url WHERE {{
 ORDER BY DESC(?cons) LIMIT 1
 """
     try:
-        resp = requests.post(
+        r = requests.post(
             "https://fedlex.data.admin.ch/sparqlendpoint",
-            data={"query": query},
+            data={"query": query2},
             headers={"Accept": "application/sparql-results+json"},
             timeout=30,
         )
-        resp.raise_for_status()
-        rows = resp.json()["results"]["bindings"]
+        r.raise_for_status()
+        rows = r.json()["results"]["bindings"]
         if rows:
             return rows[0]["url"]["value"]
+        log.warning(f"[ADMIN] No HTML URL in SPARQL step2 for RS {rs_number}")
     except Exception as e:
-        log.warning(f"SPARQL HTML URL error RS {rs_number}: {e}")
+        log.error(f"[ADMIN] ❌ SPARQL step2 RS {rs_number}: {e}")
     return None
 
 
@@ -183,7 +199,7 @@ def _fetch_and_parse_html(html_url: str, rs_number: str, title: str, abbrev: str
         resp = requests.get(html_url, timeout=60)
         resp.encoding = "utf-8"
     except Exception as e:
-        log.warning(f"HTTP error {html_url}: {e}")
+        log.error(f"[ADMIN] ❌ HTTP fetch {html_url}: {e}")
         return []
 
     soup = BeautifulSoup(resp.content, "html.parser")
@@ -191,17 +207,16 @@ def _fetch_and_parse_html(html_url: str, rs_number: str, title: str, abbrev: str
     chunks = []
 
     for art in articles:
-        # Section path
         path_parts = []
         parent = art.parent
         while parent and parent.name:
             if parent.name == "section":
-                h = parent.find(["h1", "h2", "h3", "h4", "h5", "h6"], recursive=False)
+                h = parent.find(["h1","h2","h3","h4","h5","h6"], recursive=False)
                 if h:
                     path_parts.insert(0, h.get_text(strip=True)[:60])
             parent = parent.parent
 
-        heading = art.find(["h6", "h5", "h4", "h3"])
+        heading = art.find(["h6","h5","h4","h3"])
         art_num = heading.get_text(strip=True) if heading else art.get("id", "")
         text = "\n".join(p.get_text(" ", strip=True) for p in art.find_all("p") if p.get_text(strip=True))
 
@@ -222,7 +237,6 @@ def _fetch_and_parse_html(html_url: str, rs_number: str, title: str, abbrev: str
 
 
 def _fetch_cantonal_page(url: str) -> tuple[list[dict], str]:
-    """Retourne (articles_parsed, raw_text)."""
     try:
         resp = requests.get(url, timeout=30, headers={
             "Accept-Language": "fr,de",
@@ -231,11 +245,10 @@ def _fetch_cantonal_page(url: str) -> tuple[list[dict], str]:
         resp.raise_for_status()
         resp.encoding = "utf-8"
     except Exception as e:
+        log.error(f"[ADMIN] ❌ Canton fetch {url}: {e}")
         return [], str(e)
 
     soup = BeautifulSoup(resp.content, "html.parser")
-
-    # Try structured articles first
     articles = soup.find_all("article")
     if not articles:
         articles = soup.find_all(class_=lambda c: c and "article" in str(c).lower())
@@ -245,14 +258,13 @@ def _fetch_cantonal_page(url: str) -> tuple[list[dict], str]:
         text = art.get_text("\n", strip=True)
         if len(text.strip()) < 30:
             continue
-        h = art.find(["h1", "h2", "h3", "h4", "h5", "h6"])
+        h = art.find(["h1","h2","h3","h4","h5","h6"])
         parsed.append({
             "idx": idx,
             "ref": h.get_text(strip=True)[:80] if h else f"Art. {idx+1}",
             "text": text[:4000],
         })
 
-    # Fallback: raw text
     raw = ""
     if not parsed:
         body = soup.find("main") or soup.find(class_="content") or soup.find("body")
@@ -263,29 +275,28 @@ def _fetch_cantonal_page(url: str) -> tuple[list[dict], str]:
 
 
 # ---------------------------------------------------------------------------
-# Ingestion functions (async — use asyncio.to_thread for HTTP)
+# Ingestion functions
 # ---------------------------------------------------------------------------
 
-async def ingest_fedlex_codes(conn: asyncpg.Connection, rs_list: list, status: dict):
+async def ingest_fedlex_codes(conn, rs_list: list, status: dict):
     total_chunks = 0
+    errors = []
 
     for i, (rs_number, abbrev, title) in enumerate(rs_list):
         status["current"] = f"{abbrev} (RS {rs_number}) [{i+1}/{len(rs_list)}]"
         status["progress"] = f"{i+1}/{len(rs_list)}"
-        log.info(f"[Fedlex] {abbrev} RS {rs_number}...")
+        log.info(f"[ADMIN] Fedlex {abbrev} RS {rs_number}...")
 
-        # SPARQL in thread
         html_url = await asyncio.to_thread(_sparql_get_html_url, rs_number)
         if not html_url:
-            log.warning(f"  No HTML URL for RS {rs_number}")
+            errors.append(f"RS {rs_number}: no HTML URL")
             continue
 
         await asyncio.sleep(0.5)
 
-        # Parse HTML in thread
         chunks = await asyncio.to_thread(_fetch_and_parse_html, html_url, rs_number, title, abbrev)
         if not chunks:
-            log.warning(f"  No articles for RS {rs_number}")
+            errors.append(f"RS {rs_number}: no articles parsed")
             continue
 
         full_text = "\n\n".join(c["text"] for c in chunks)
@@ -303,7 +314,8 @@ async def ingest_fedlex_codes(conn: asyncpg.Connection, rs_list: list, status: d
                 rs_number, title, f"RS {rs_number}", full_text[:100000], html_url,
             )
         except Exception as e:
-            log.error(f"  Doc insert error RS {rs_number}: {e}")
+            log.error(f"[ADMIN] ❌ Doc insert RS {rs_number}: {e}")
+            errors.append(f"RS {rs_number}: insert error {e}")
             continue
 
         chunk_count = 0
@@ -316,21 +328,21 @@ async def ingest_fedlex_codes(conn: asyncpg.Connection, rs_list: list, status: d
                     VALUES ($1, $2, $3, $4, $5)
                     ON CONFLICT DO NOTHING
                     """,
-                    doc_id, idx, chunk["text"],
-                    chunk["article_ref"], chunk["url"],
+                    doc_id, idx, chunk["text"], chunk["article_ref"], chunk["url"],
                 )
                 chunk_count += 1
             except Exception as e:
-                log.debug(f"  Chunk error: {e}")
+                log.debug(f"[ADMIN] Chunk error: {e}")
 
         total_chunks += chunk_count
         status["total_chunks"] = total_chunks
-        log.info(f"  RS {rs_number}: {chunk_count} chunks OK")
+        status["errors"] = errors
+        log.info(f"[ADMIN] ✅ RS {rs_number} ({abbrev}): {chunk_count} chunks")
 
     return total_chunks
 
 
-async def ingest_atf_decisions(conn: asyncpg.Connection, limit: int, status: dict):
+async def ingest_atf_decisions(conn, limit: int, status: dict):
     total = 0
     offset = 0
     batch = 50
@@ -355,7 +367,7 @@ async def ingest_atf_decisions(conn: asyncpg.Connection, limit: int, status: dic
                 resp.raise_for_status()
                 return resp.json().get("hits", {}).get("hits", [])
             except Exception as e:
-                log.warning(f"ATF search error: {e}")
+                log.error(f"[ADMIN] ❌ ATF search error offset={off}: {e}")
                 return []
 
         hits = await asyncio.to_thread(fetch_batch, offset)
@@ -393,7 +405,7 @@ async def ingest_atf_decisions(conn: asyncpg.Connection, limit: int, status: dic
                 )
                 total += 1
             except Exception as e:
-                log.debug(f"ATF insert error {ref}: {e}")
+                log.debug(f"[ADMIN] ATF insert error {ref}: {e}")
 
         status["current"] = f"ATF: {total} arrêts ingérés"
         status["total_atf"] = total
@@ -405,7 +417,7 @@ async def ingest_atf_decisions(conn: asyncpg.Connection, limit: int, status: dic
     return total
 
 
-async def ingest_cantonal(conn: asyncpg.Connection, cantons: list, status: dict):
+async def ingest_cantonal(conn, cantons: list, status: dict):
     total = 0
 
     for i, canton in enumerate(cantons):
@@ -415,16 +427,16 @@ async def ingest_cantonal(conn: asyncpg.Connection, cantons: list, status: dict)
 
         if url.endswith(".pdf"):
             status.setdefault("skipped", []).append(f"{canton} (PDF)")
-            log.info(f"  {canton}: PDF skipped")
+            log.info(f"[ADMIN] {canton}: PDF skipped (not supported yet)")
             continue
 
         status["current"] = f"Canton {canton} [{i+1}/{len(cantons)}]"
-        log.info(f"[Canton] {canton}: {law_title}")
+        log.info(f"[ADMIN] Canton {canton}: {law_title}")
 
         articles, raw_text = await asyncio.to_thread(_fetch_cantonal_page, url)
 
         if not articles and len(raw_text) < 100:
-            log.warning(f"  {canton}: No content")
+            log.warning(f"[ADMIN] ⚠️ {canton}: No content retrieved")
             status.setdefault("errors", []).append(f"{canton}: no content")
             continue
 
@@ -443,7 +455,7 @@ async def ingest_cantonal(conn: asyncpg.Connection, cantons: list, status: dict)
                 doc_content[:100000], url,
             )
         except Exception as e:
-            log.error(f"  {canton} doc error: {e}")
+            log.error(f"[ADMIN] ❌ {canton} doc error: {e}")
             continue
 
         if articles:
@@ -460,7 +472,7 @@ async def ingest_cantonal(conn: asyncpg.Connection, cantons: list, status: dict)
                     )
                     total += 1
                 except Exception as e:
-                    log.debug(f"  {canton} chunk error: {e}")
+                    log.debug(f"[ADMIN] {canton} chunk error: {e}")
         else:
             try:
                 await conn.execute(
@@ -474,26 +486,30 @@ async def ingest_cantonal(conn: asyncpg.Connection, cantons: list, status: dict)
                 )
                 total += 1
             except Exception as e:
-                log.debug(f"  {canton} raw chunk error: {e}")
+                log.debug(f"[ADMIN] {canton} raw chunk error: {e}")
 
         status["total_cantonal_chunks"] = total
-        log.info(f"  {canton}: {len(articles) or 1} chunks")
+        log.info(f"[ADMIN] ✅ {canton}: {len(articles) or 1} chunks")
         await asyncio.sleep(0.8)
 
     return total
 
 
 # ---------------------------------------------------------------------------
-# Background job
+# Background job runner
 # ---------------------------------------------------------------------------
 
 async def _run_job(job_id: str, request: IngestRequest):
     status = _jobs[job_id]
     status.update({"status": "running", "started_at": datetime.utcnow().isoformat()})
+    log.info(f"[ADMIN] Job {job_id} started — source={request.source}")
 
     try:
         conn = await asyncpg.connect(DATABASE_URL)
         try:
+            # Always run migrations first
+            await _run_migrations(conn)
+
             src = request.source
 
             if src in ("fedlex", "all"):
@@ -516,10 +532,10 @@ async def _run_job(job_id: str, request: IngestRequest):
 
         status["status"] = "completed"
         status["completed_at"] = datetime.utcnow().isoformat()
-        log.info(f"Job {job_id} completed. chunks={status.get('total_chunks',0)}")
+        log.info(f"[ADMIN] ✅ Job {job_id} completed — chunks={status.get('total_chunks',0)}, atf={status.get('total_atf',0)}")
 
     except Exception as e:
-        log.error(f"Job {job_id} FAILED: {e}", exc_info=True)
+        log.error(f"[ADMIN] ❌ Job {job_id} FAILED: {e}", exc_info=True)
         status["status"] = "failed"
         status["error"] = str(e)
 
@@ -543,6 +559,7 @@ async def start_ingestion(
         "created_at": datetime.utcnow().isoformat(),
         "current": "En attente...",
         "total_chunks": 0,
+        "total_atf": 0,
     }
     background_tasks.add_task(_run_job, job_id, request)
     return {"job_id": job_id, "status": "queued", "message": f"Ingestion '{request.source}' démarrée"}
@@ -566,31 +583,15 @@ async def get_job_status(job_id: str, x_admin_key: Optional[str] = Header(None))
 async def db_stats(x_admin_key: Optional[str] = Header(None)):
     check_admin_key(x_admin_key)
     try:
-        # Run migrations in a separate connection first
-        mig_conn = await asyncpg.connect(DATABASE_URL)
-        for migration in [
-            "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb",
-            "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS reference TEXT",
-            "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS jurisdiction TEXT DEFAULT 'CH'",
-        ]:
-            try:
-                await mig_conn.execute(migration)
-            except Exception:
-                pass
-        await mig_conn.close()
-
         conn = await asyncpg.connect(DATABASE_URL)
         try:
+            await _run_migrations(conn)
 
             docs = await conn.fetchval("SELECT COUNT(*) FROM legal_documents")
             chunks = await conn.fetchval("SELECT COUNT(*) FROM legal_chunks")
 
-            # Check embedding column
             chunk_cols = [r["column_name"] for r in await conn.fetch(
                 "SELECT column_name FROM information_schema.columns WHERE table_name='legal_chunks'"
-            )]
-            doc_cols = [r["column_name"] for r in await conn.fetch(
-                "SELECT column_name FROM information_schema.columns WHERE table_name='legal_documents'"
             )]
 
             embedded = 0
@@ -600,11 +601,9 @@ async def db_stats(x_admin_key: Optional[str] = Header(None)):
             by_source = await conn.fetch(
                 "SELECT source, COUNT(*) as cnt FROM legal_documents GROUP BY source ORDER BY cnt DESC"
             )
-            by_type = []
-            if "doc_type" in doc_cols:
-                by_type = await conn.fetch(
-                    "SELECT doc_type, COUNT(*) as cnt FROM legal_documents GROUP BY doc_type"
-                )
+            by_type = await conn.fetch(
+                "SELECT doc_type, COUNT(*) as cnt FROM legal_documents GROUP BY doc_type"
+            )
             users = await conn.fetchval("SELECT COUNT(*) FROM users")
 
         finally:
@@ -618,58 +617,20 @@ async def db_stats(x_admin_key: Optional[str] = Header(None)):
             "by_source": [{"source": r["source"], "count": r["cnt"]} for r in by_source],
             "by_type": [{"type": r["doc_type"], "count": r["cnt"]} for r in by_type],
             "users": users,
-            "legal_chunks_columns": chunk_cols,
-            "legal_documents_columns": doc_cols,
         }
     except Exception as e:
+        log.error(f"[ADMIN] ❌ db/stats error: {e}")
         raise HTTPException(500, f"DB error: {e}")
-
-
-@router.get("/debug/sparql")
-async def debug_sparql(x_admin_key: Optional[str] = Header(None)):
-    """Test SPARQL connectivity for CO (RS 220)."""
-    check_admin_key(x_admin_key)
-    import traceback
-
-    def _test():
-        try:
-            html_url = _sparql_get_html_url("220")
-            return {"sparql_ok": html_url is not None, "html_url": html_url}
-        except Exception as e:
-            return {"sparql_ok": False, "error": str(e), "trace": traceback.format_exc()[-500:]}
-
-    result = await asyncio.to_thread(_test)
-
-    if result.get("html_url"):
-        def _test_html(url):
-            try:
-                chunks = _fetch_and_parse_html(url, "220", "Code des obligations", "CO")
-                return {"html_ok": True, "chunks_found": len(chunks), "sample": chunks[0]["text"][:200] if chunks else None}
-            except Exception as e:
-                return {"html_ok": False, "error": str(e)}
-        result.update(await asyncio.to_thread(_test_html, result["html_url"]))
-
-    return result
 
 
 @router.get("/debug/db")
 async def debug_db(x_admin_key: Optional[str] = Header(None)):
-    """Test DB connectivity and run migrations."""
+    """Test DB + run migrations."""
     check_admin_key(x_admin_key)
     try:
         conn = await asyncpg.connect(DATABASE_URL)
         try:
-            for sql in [
-                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb",
-                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS reference TEXT",
-                "ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS jurisdiction TEXT DEFAULT 'CH'",
-                "ALTER TABLE legal_chunks ADD COLUMN IF NOT EXISTS source_ref TEXT",
-                "ALTER TABLE legal_chunks ADD COLUMN IF NOT EXISTS source_url TEXT",
-            ]:
-                try:
-                    await conn.execute(sql)
-                except Exception:
-                    pass
+            await _run_migrations(conn)
 
             docs = await conn.fetchval("SELECT COUNT(*) FROM legal_documents")
             chunks = await conn.fetchval("SELECT COUNT(*) FROM legal_chunks")
@@ -679,27 +640,55 @@ async def debug_db(x_admin_key: Optional[str] = Header(None)):
             chunk_cols = [r["column_name"] for r in await conn.fetch(
                 "SELECT column_name FROM information_schema.columns WHERE table_name='legal_chunks' ORDER BY ordinal_position"
             )]
-            test_ok = False
+
+            # Test insert/delete
             try:
                 await conn.execute("""
                     INSERT INTO legal_documents (source, external_id, doc_type, title, reference, language, content, url)
-                    VALUES ('test', 'test_debug_001', 'test', 'Test', 'TEST', 'fr', 'test content', 'http://test')
+                    VALUES ('test', 'test_debug_001', 'test', 'Test', 'TEST', 'fr', 'test', 'http://test')
                     ON CONFLICT (source, external_id) DO NOTHING
                 """)
                 await conn.execute("DELETE FROM legal_documents WHERE source='test'")
-                test_ok = True
+                insert_ok = True
             except Exception as e:
-                test_ok = str(e)
+                insert_ok = str(e)
 
-            return {
-                "db_ok": True,
-                "legal_documents": docs,
-                "legal_chunks": chunks,
-                "doc_columns": doc_cols,
-                "chunk_columns": chunk_cols,
-                "insert_test": test_ok,
-            }
         finally:
             await conn.close()
+
+        return {
+            "db_ok": True,
+            "legal_documents": docs,
+            "legal_chunks": chunks,
+            "doc_columns": doc_cols,
+            "chunk_columns": chunk_cols,
+            "insert_test": insert_ok,
+        }
     except Exception as e:
+        log.error(f"[ADMIN] ❌ debug/db error: {e}")
         return {"db_ok": False, "error": str(e)}
+
+
+@router.get("/debug/sparql")
+async def debug_sparql(x_admin_key: Optional[str] = Header(None)):
+    """Test SPARQL + HTML parsing for CO (RS 220)."""
+    check_admin_key(x_admin_key)
+
+    def _test():
+        try:
+            html_url = _sparql_get_html_url("220")
+            if not html_url:
+                return {"sparql_ok": False, "error": "No HTML URL returned for RS 220"}
+            chunks = _fetch_and_parse_html(html_url, "220", "Code des obligations", "CO")
+            return {
+                "sparql_ok": True,
+                "html_url": html_url,
+                "chunks_found": len(chunks),
+                "sample": chunks[0]["text"][:200] if chunks else None,
+            }
+        except Exception as e:
+            return {"sparql_ok": False, "error": str(e)}
+
+    result = await asyncio.to_thread(_test)
+    log.info(f"[ADMIN] SPARQL debug: {result}")
+    return result

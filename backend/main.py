@@ -24,6 +24,14 @@ except Exception as _e:
     logging.getLogger("soluris").error(f"ADMIN IMPORT FAILED: {_e}")
     _admin_ok = False
 
+try:
+    from backend.routers import admin_bulk as admin_bulk_router
+    _admin_bulk_ok = True
+except Exception as _e:
+    import logging
+    logging.getLogger("soluris").error(f"ADMIN_BULK IMPORT FAILED: {_e}")
+    _admin_bulk_ok = False
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -60,6 +68,8 @@ if _fiscal_ok:
     app.include_router(fiscal.router)  # tAIx internal endpoint
 if _admin_ok:
     app.include_router(admin_router.router)  # Admin ingestion endpoint
+if _admin_bulk_ok:
+    app.include_router(admin_bulk_router.router)  # Bulk insert endpoint
 
 # Static files
 frontend = os.path.join(os.path.dirname(__file__), "..", "frontend")
